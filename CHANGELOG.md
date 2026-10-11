@@ -8,4 +8,6 @@ All notable changes to this project are documented here. The format follows
 
 ## [0.1.0]
 
-- First release.
+- First release: `cell_len`, `char_width`, `cell_slice`, `ljust`, `rjust`,
+  `center`, `truncate` and `strip_ansi`, with a vendored Unicode width table and
+  full type hints.
