@@ -21,21 +21,21 @@ def cell_slice(
 ) -> str:
     """Return the cells of ``text`` in the half-open column range ``[start, stop)``.
 
-        Grapheme clusters are never split: a letter keeps its accents, a flag or an emoji
-        ZWJ sequence stays whole, and a wide cluster is kept only when all its cells fall
-        inside the range. Every escape sequence is preserved wherever it sits, so styles and
-        OSC 8 hyperlinks still open and close. A zero-width cluster belongs to the column it
-        sits at, and one at the very end belongs to any non-empty range that reaches the end
-    (or to an open-ended one). An empty range holds no printable text. With
-        ``tabsize`` set, a kept tab becomes the spaces it covered, so the layout survives.
+    Grapheme clusters are never split: a letter keeps its accents, a flag or an emoji
+    ZWJ sequence stays whole, and a wide cluster is kept only when all its cells fall
+    inside the range. Every escape sequence is preserved wherever it sits, so styles and
+    OSC 8 hyperlinks still open and close. A zero-width cluster belongs to the column it
+    sits at, and one at the very end belongs to any non-empty range that reaches the end
+    (or to an open-ended one). An empty range holds no printable text. With ``tabsize``
+    set, a tab becomes the spaces it covers inside the range, so the layout survives.
 
-        For plain text, ``cell_slice(t, 0, k) + cell_slice(t, k)`` equals ``t`` whenever
-        ``k`` does not fall inside a wide cluster.
+    For plain text, ``cell_slice(t, 0, k) + cell_slice(t, k)`` equals ``t`` whenever
+    ``k`` does not fall inside a wide cluster.
 
-        >>> cell_slice("\\x1b[31mhello\\x1b[0m", 0, 3) == "\\x1b[31mhel\\x1b[0m"
-        True
-        >>> cell_slice("a\\u4f60b", 0, 2), cell_slice("e\\u0301tude", 0, 1) == "e\\u0301"
-        ('a', True)
+    >>> cell_slice("\\x1b[31mhello\\x1b[0m", 0, 3) == "\\x1b[31mhel\\x1b[0m"
+    True
+    >>> cell_slice("a\\u4f60b", 0, 2), cell_slice("e\\u0301tude", 0, 1) == "e\\u0301"
+    ('a', True)
     """
     if start < 0 or (stop is not None and stop < 0):
         raise ValueError("cell_slice does not support negative indices")
@@ -49,12 +49,12 @@ def cell_slice(
 def _keep(cell: Cell, start: int, limit: int, total: int, tail: bool, tabsize: int | None) -> str:
     if cell.escape:
         return cell.text
+    if tabsize is not None and cell.text == "\t":
+        return " " * max(0, min(cell.column + cell.width, limit) - max(cell.column, start))
     if cell.column < start:
         return ""
     if cell.width:
-        if cell.column + cell.width > limit:
-            return ""
-        return " " * cell.width if tabsize is not None and cell.text == "\t" else cell.text
+        return "" if cell.column + cell.width > limit else cell.text
     return cell.text if cell.column < limit or (tail and cell.column == total) else ""
 
 

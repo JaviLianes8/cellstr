@@ -69,6 +69,8 @@ def test_slice_bounds() -> None:
 def test_slice_with_tabs_keeps_the_layout() -> None:
     assert cell_slice("a\tb", 0, 4, tabsize=4) == "a   "
     assert cell_slice("a\tbc", 4, tabsize=4) == "bc"
+    assert cell_slice("a\tb", 2, tabsize=4) == "  b"
+    assert cell_slice("a\tb", 2, 3, tabsize=4) == " "
     assert cell_slice("a\tb", 0, 2) == "a\tb"
 
 
