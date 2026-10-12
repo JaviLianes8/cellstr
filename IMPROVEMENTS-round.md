@@ -8,7 +8,7 @@ Progress:
 - [x] Ambiguous-width policy and tab handling
 - [x] Grapheme-safe slicing, padding, fit and truncation with typed results
 - [x] ANSI coverage (CSI, OSC 8 with BEL or ST, DCS/APC strings, charset escapes)
-- [ ] Command line tool
+- [x] Command line tool
 - [ ] Docs: docstrings, README, GUIDE, CHANGELOG, version bump
 - [ ] Contract test, oracle cross-check, seeded fuzz, wheel e2e
 - [ ] Gates green, pull request opened

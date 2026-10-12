@@ -4,21 +4,31 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cellstr"
-version = "0.1.0"
-description = "Display-cell-accurate len, slice, pad and truncate for strings with ANSI codes and wide characters"
+version = "0.2.0"
+description = "Display-width aware len, slice, pad and truncate for terminal text: wide CJK, emoji sequences, combining marks and ANSI codes"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "LICENSE-UNICODE"]
 authors = [{ name = "Javier Lianes", email = "javier@lianes8studio.com" }]
-keywords = ["ansi", "terminal", "width", "wcwidth", "unicode", "cli", "text", "truncate"]
+keywords = ["ansi", "terminal", "width", "wcwidth", "unicode", "east-asian-width", "grapheme", "emoji", "truncate", "cli"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Environment :: Console",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Terminals",
+    "Topic :: Text Processing",
+    "Topic :: Software Development :: Libraries",
     "Typing :: Typed",
 ]
 dependencies = []
+
+[project.scripts]
+cellstr = "cellstr._cli:main"
 
 [project.optional-dependencies]
 dev = ["ruff", "mypy", "pytest", "build", "twine"]
