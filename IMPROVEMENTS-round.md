@@ -11,7 +11,7 @@ Progress:
 - [x] Command line tool
 - [x] Docs: docstrings, README, GUIDE, CHANGELOG, version bump
 - [x] Contract test, oracle cross-check, seeded fuzz, wheel e2e
-- [ ] Gates green, pull request opened
+- [x] Gates green, pull request opened (#2)
 - [ ] Independent review findings fixed, trace guard clean
 
 Ranked by user impact. Every item is additive: the 0.1.0 functions keep their names,
