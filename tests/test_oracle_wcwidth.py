@@ -100,15 +100,15 @@ def test_every_code_point_agrees_or_has_a_documented_reason() -> None:
 
 
 SEQUENCES = {
-    "family ZWJ sequence": ("\U0001f468‍\U0001f469‍\U0001f467", 2),
-    "VS16 emoji presentation": ("❤️", 2),
-    "text default emoji": ("❤", 1),
+    "family ZWJ sequence": ("\U0001f468\u200d\U0001f469\u200d\U0001f467", 2),
+    "VS16 emoji presentation": ("\u2764\ufe0f", 2),
+    "text default emoji": ("\u2764", 1),
     "flag": ("\U0001f1ea\U0001f1f8", 2),
     "skin tone sequence": ("\U0001f44d\U0001f3fd", 2),
-    "keycap": ("1️⃣", 2),
-    "combining accent": ("é", 1),
-    "conjoining Hangul": ("각", 2),
-    "CJK and ASCII": ("ab你好", 6),
+    "keycap": ("1\ufe0f\u20e3", 2),
+    "combining accent": ("e\u0301", 1),
+    "conjoining Hangul": ("\u1100\u1161\u11a8", 2),
+    "CJK and ASCII": ("ab\u4f60\u597d", 6),
 }
 
 
@@ -120,6 +120,6 @@ def test_strings_agree_with_wcswidth(name: str) -> None:
 
 def test_documented_string_differences() -> None:
     # VS15 asks for text presentation: one cell here, the oracle keeps two.
-    assert (cell_len("⌚︎"), wcwidth.wcswidth("⌚︎")) == (1, 2)
+    assert (cell_len("\u231a\ufe0e"), wcwidth.wcswidth("\u231a\ufe0e")) == (1, 2)
     # A Devanagari spacing vowel sign takes a cell here, as in glibc; the oracle says 0.
-    assert (cell_len("कि"), wcwidth.wcswidth("कि")) == (2, 1)
+    assert (cell_len("\u0915\u093f"), wcwidth.wcswidth("\u0915\u093f")) == (2, 1)

@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+from ._ansi import segments
 from ._graphemes import grapheme_ends
 from ._props import AMBIGUOUS, EMOJI_BIT, EXT_PICT_BIT, GCB, MODIFIER_BIT, WIDTH_SHIFT, prop
 
 _RI = GCB["Regional_Indicator"]
-_VS15 = "︎"
-_VS16 = "️"
-_ZWJ = "‍"
+_VS15 = "\ufe0e"
+_VS16 = "\ufe0f"
+_ZWJ = "\u200d"
 _TAGS = range(0xE0020, 0xE0080)
 
 
@@ -50,13 +51,15 @@ def cluster_width(cluster: str, ambiguous: int) -> int:
     if len(cluster) == 1:
         return code_width(code, ambiguous)
     rest = cluster[1:]
-    if code & EMOJI_BIT:
+    if code & EMOJI_BIT and not code & MODIFIER_BIT:
         if _VS15 in rest:
             return 1
         if _VS16 in rest:
             return 2
-    if code & (EMOJI_BIT | EXT_PICT_BIT) and (
-        _ZWJ in rest or any(prop(ord(ch)) & MODIFIER_BIT or ord(ch) in _TAGS for ch in rest)
+    if (
+        code & (EMOJI_BIT | EXT_PICT_BIT)
+        and not code & MODIFIER_BIT
+        and (_ZWJ in rest or any(prop(ord(ch)) & MODIFIER_BIT or ord(ch) in _TAGS for ch in rest))
     ):
         return 2
     if code & 0x0F == _RI and prop(ord(rest[0])) & 0x0F == _RI:
@@ -84,8 +87,7 @@ def grapheme_width(cluster: str, *, ambiguous: int = 1) -> int:
     return cluster_width(cluster, check_ambiguous(ambiguous))
 
 
-def text_width(text: str, ambiguous: int) -> int:
-    """Width of ``text`` that holds no escape sequences and no tab stops to honour."""
+def _plain_width(text: str, ambiguous: int) -> int:
     if text.isascii():
         return sum(1 for ch in text if " " <= ch <= "~")
     total = 0
@@ -94,3 +96,10 @@ def text_width(text: str, ambiguous: int) -> int:
         total += cluster_width(text[start:end], ambiguous)
         start = end
     return total
+
+
+def text_width(text: str, ambiguous: int) -> int:
+    """Width of ``text`` with no tab stops to honour; an escape sequence ends a cluster."""
+    if "\x1b" not in text:
+        return _plain_width(text, ambiguous)
+    return sum(_plain_width(s.text, ambiguous) for s in segments(text) if not s.is_escape)

@@ -61,6 +61,6 @@ def test_segments_alternate_text_and_escape() -> None:
 
 
 def test_segments_rejoin_to_the_original() -> None:
-    text = f"{RED}x你{RESET}y\x1b]8;;u\x07z"
+    text = f"{RED}x\u4f60{RESET}y\x1b]8;;u\x07z"
     assert "".join(p.text for p in segments(text)) == text
     assert segments("") == []

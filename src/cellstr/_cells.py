@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import NamedTuple
 
-from ._ansi import segments, strip_ansi
+from ._ansi import segments
 from ._graphemes import grapheme_ends
 from ._width import check_ambiguous, cluster_width, text_width
 
@@ -84,8 +84,7 @@ def cell_len(text: str, *, ambiguous: int = 1, tabsize: int | None = None) -> in
     """
     check_ambiguous(ambiguous)
     if check_tabsize(tabsize) is None or "\t" not in text:
-        plain = strip_ansi(text) if "\x1b" in text else text
-        return text_width(plain, ambiguous)
+        return text_width(text, ambiguous)
     return sum(cell.width for cell in iter_cells(text, ambiguous=ambiguous, tabsize=tabsize))
 
 

@@ -6,7 +6,6 @@ operation, while only printable cells count toward a width.
 
 from __future__ import annotations
 
-from ._ansi import strip_ansi
 from ._cells import Cell, check_tabsize, expand_tabs, iter_cells, total_width
 from ._graphemes import grapheme_ends
 from ._width import check_ambiguous, cluster_width, text_width
@@ -22,27 +21,28 @@ def cell_slice(
 ) -> str:
     """Return the cells of ``text`` in the half-open column range ``[start, stop)``.
 
-    Grapheme clusters are never split: a letter keeps its accents, a flag or an emoji
-    ZWJ sequence stays whole, and a wide cluster is kept only when all its cells fall
-    inside the range. Every escape sequence is preserved wherever it sits, so styles and
-    OSC 8 hyperlinks still open and close. A zero-width cluster belongs to the column it
-    sits at, and one at the very end belongs to any range that reaches the end. With
-    ``tabsize`` set, a kept tab becomes the spaces it covered, so the layout survives.
+        Grapheme clusters are never split: a letter keeps its accents, a flag or an emoji
+        ZWJ sequence stays whole, and a wide cluster is kept only when all its cells fall
+        inside the range. Every escape sequence is preserved wherever it sits, so styles and
+        OSC 8 hyperlinks still open and close. A zero-width cluster belongs to the column it
+        sits at, and one at the very end belongs to any non-empty range that reaches the end
+    (or to an open-ended one). An empty range holds no printable text. With
+        ``tabsize`` set, a kept tab becomes the spaces it covered, so the layout survives.
 
-    For plain text, ``cell_slice(t, 0, k) + cell_slice(t, k)`` equals ``t`` whenever
-    ``k`` does not fall inside a wide cluster.
+        For plain text, ``cell_slice(t, 0, k) + cell_slice(t, k)`` equals ``t`` whenever
+        ``k`` does not fall inside a wide cluster.
 
-    >>> cell_slice("\\x1b[31mhello\\x1b[0m", 0, 3) == "\\x1b[31mhel\\x1b[0m"
-    True
-    >>> cell_slice("a\\u4f60b", 0, 2), cell_slice("e\\u0301tude", 0, 1) == "e\\u0301"
-    ('a', True)
+        >>> cell_slice("\\x1b[31mhello\\x1b[0m", 0, 3) == "\\x1b[31mhel\\x1b[0m"
+        True
+        >>> cell_slice("a\\u4f60b", 0, 2), cell_slice("e\\u0301tude", 0, 1) == "e\\u0301"
+        ('a', True)
     """
     if start < 0 or (stop is not None and stop < 0):
         raise ValueError("cell_slice does not support negative indices")
     cells = list(iter_cells(text, ambiguous=ambiguous, tabsize=tabsize))
     total = total_width(cells)
     limit = total if stop is None else min(stop, total)
-    tail = limit == total and (start < total or total == 0)
+    tail = limit == total and (start < total or (total == 0 and stop is None))
     return "".join(_keep(cell, start, limit, total, tail, tabsize) for cell in cells)
 
 
@@ -76,7 +76,7 @@ def _prepare(text: str, fillchar: str, ambiguous: int, tabsize: int | None) -> t
     tabsize = check_tabsize(tabsize)
     if tabsize is not None:
         text = expand_tabs(text, tabsize, ambiguous=ambiguous)
-    return text, text_width(strip_ansi(text), ambiguous)
+    return text, text_width(text, ambiguous)
 
 
 def ljust(

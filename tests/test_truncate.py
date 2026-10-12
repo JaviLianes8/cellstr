@@ -8,7 +8,7 @@ from cellstr import Truncation, cell_len, fit, truncate, truncate_detailed
 
 RED = "\x1b[31m"
 RESET = "\x1b[0m"
-FAMILY = "\U0001f468‍\U0001f469‍\U0001f467"
+FAMILY = "\U0001f468\u200d\U0001f469\u200d\U0001f467"
 
 
 def test_truncate_adds_suffix_and_respects_width() -> None:
@@ -27,9 +27,9 @@ def test_truncate_without_room_for_suffix_hard_cuts() -> None:
 
 
 def test_truncate_accounts_for_wide_cells() -> None:
-    assert truncate("你好世", 4, "") == "你好"
-    assert truncate("你好世", 4) == "..."
-    assert truncate("你好世", 5) == "你..."
+    assert truncate("\u4f60\u597d\u4e16", 4, "") == "\u4f60\u597d"
+    assert truncate("\u4f60\u597d\u4e16", 4) == "..."
+    assert truncate("\u4f60\u597d\u4e16", 5) == "\u4f60..."
 
 
 def test_truncate_positions() -> None:
@@ -62,15 +62,15 @@ def test_truncate_rejects_bad_arguments() -> None:
 
 def test_truncate_with_tabs_and_ambiguous_policy() -> None:
     assert truncate("a\tbcdef", 6, "", tabsize=4) == "a   bc"
-    assert truncate("αβγ", 4, "~", ambiguous=2) == "α~"
+    assert truncate("\u03b1\u03b2\u03b3", 4, "~", ambiguous=2) == "\u03b1~"
 
 
 def test_truncate_detailed_reports_the_outcome() -> None:
     assert truncate_detailed("hello world", 8) == Truncation("hello...", 8, 11, True)
     assert truncate_detailed("hi", 8) == Truncation("hi", 2, 2, False)
-    short = truncate_detailed("你好世", 3, "")
-    assert short == Truncation("你", 2, 6, True)
-    assert short.text == "你" and short.truncated
+    short = truncate_detailed("\u4f60\u597d\u4e16", 3, "")
+    assert short == Truncation("\u4f60", 2, 6, True)
+    assert short.text == "\u4f60" and short.truncated
 
 
 def test_fit_truncates_or_pads_to_the_exact_width() -> None:
@@ -78,11 +78,11 @@ def test_fit_truncates_or_pads_to_the_exact_width() -> None:
     assert fit("hi", 5) == "hi   "
     assert fit("hi", 5, align="right") == "   hi"
     assert fit("hi", 5, align="center", fillchar=".") == ".hi.."
-    assert fit("你好世", 5, suffix="") == "你好 "
+    assert fit("\u4f60\u597d\u4e16", 5, suffix="") == "\u4f60\u597d "
 
 
 def test_fit_rows_line_up() -> None:
-    rows = ["name", "张伟", FAMILY + " family", f"{RED}error{RESET}", "éclair"]
+    rows = ["name", "\u5f20\u4f1f", FAMILY + " family", f"{RED}error{RESET}", "e\u0301clair"]
     for row in rows:
         assert cell_len(fit(row, 6)) == 6
 
@@ -91,4 +91,4 @@ def test_fit_rejects_bad_options() -> None:
     with pytest.raises(ValueError, match="align"):
         fit("x", 3, align="middle")  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="fillchar"):
-        fit("x", 3, fillchar="你")
+        fit("x", 3, fillchar="\u4f60")

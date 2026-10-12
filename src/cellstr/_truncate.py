@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Literal, NamedTuple
 
-from ._ansi import strip_ansi
 from ._cells import check_tabsize, expand_tabs
 from ._ops import cell_slice, center, check_fill, ljust, rjust
 from ._width import check_ambiguous, text_width
@@ -57,10 +56,10 @@ def truncate_detailed(
     tabsize = check_tabsize(tabsize)
     if tabsize is not None:
         text = expand_tabs(text, tabsize, ambiguous=ambiguous)
-    total = text_width(strip_ansi(text), ambiguous)
+    total = text_width(text, ambiguous)
     if total <= width:
         return Truncation(text, total, total, False)
-    room = width - text_width(strip_ansi(suffix), ambiguous)
+    room = width - text_width(suffix, ambiguous)
     if room < 0:  # no room for the suffix: hard cut, and a middle cut becomes an end cut
         suffix, room = "", width
         position = "start" if position == "start" else "end"
@@ -74,7 +73,7 @@ def truncate_detailed(
     left = cell_slice(text, 0, head, ambiguous=ambiguous) if head or not tail else ""
     right = cell_slice(text, total - tail, ambiguous=ambiguous) if tail else ""
     cut = left + suffix + right
-    return Truncation(cut, text_width(strip_ansi(cut), ambiguous), total, True)
+    return Truncation(cut, text_width(cut, ambiguous), total, True)
 
 
 def truncate(
