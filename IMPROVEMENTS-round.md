@@ -12,7 +12,7 @@ Progress:
 - [x] Docs: docstrings, README, GUIDE, CHANGELOG, version bump
 - [x] Contract test, oracle cross-check, seeded fuzz, wheel e2e
 - [x] Gates green, pull request opened (#2)
-- [ ] Independent review findings fixed, trace guard clean
+- [x] Review findings fixed
 
 Ranked by user impact. Every item is additive: the 0.1.0 functions keep their names,
 positional parameters and return types. New behaviour arrives through new functions and
@@ -46,7 +46,8 @@ terminals draw.
 7. **Typed cell iteration.** `iter_cells()` yields frozen `Cell` records (text, width,
    column, escape flag) so callers can build their own layouts without re-measuring.
 8. **ANSI coverage.** Keep ignoring SGR and OSC 8 hyperlinks when measuring and keep them
-   when slicing; add DCS, SOS, PM and APC strings, charset designations and 8-bit CSI.
+   when slicing; add DCS, SOS, PM and APC strings and charset designations. 8-bit C1
+   controls are left alone: UTF-8 terminals do not treat U+009B as CSI by default.
 9. **Command line tool.** `cellstr measure`, `cellstr truncate N`, `cellstr pad N`,
    `cellstr fit N` and `cellstr slice START STOP` over stdin lines, with `--ambiguous`
    and `--tabsize`, runnable examples in `--help`, errors on stderr with exit status 1.

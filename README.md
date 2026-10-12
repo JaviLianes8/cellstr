@@ -82,7 +82,7 @@ all with `--ambiguous` and `--tabsize`. `cellstr --help` lists runnable examples
 
 There is no standard for how many cells a character takes, and terminals differ on
 ambiguous-width characters, emoji ZWJ sequences and variation selectors. `cellstr`
-follows Markus Kuhn's reference `wcwidth` (as glibc does) for single code points and
+follows Markus Kuhn's reference `wcwidth` for single code points and
 measures emoji sequences as one glyph, as terminals with grapheme support draw them.
 [GUIDE.md](GUIDE.md) has the exact rules, concrete examples of where terminals differ, a
 recipe for code point by code point measuring, and every difference from the `wcwidth`

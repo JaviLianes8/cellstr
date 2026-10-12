@@ -25,8 +25,9 @@ def cell_slice(
     ZWJ sequence stays whole, and a wide cluster is kept only when all its cells fall
     inside the range. Every escape sequence is preserved wherever it sits, so styles and
     OSC 8 hyperlinks still open and close. A zero-width cluster belongs to the column it
-    sits at, and one at the very end belongs to any non-empty range that reaches the end
-    (or to an open-ended one). An empty range holds no printable text. With ``tabsize``
+    sits at, and one at the very end belongs to a non-empty range that reaches the end
+    from a column before it (for text with no width at all, to any range starting at 0
+    that is open-ended or non-empty). An empty range holds no printable text. With ``tabsize``
     set, a tab becomes the spaces it covers inside the range, so the layout survives.
 
     For plain text, ``cell_slice(t, 0, k) + cell_slice(t, k)`` equals ``t`` whenever
@@ -42,7 +43,9 @@ def cell_slice(
     cells = list(iter_cells(text, ambiguous=ambiguous, tabsize=tabsize))
     total = total_width(cells)
     limit = total if stop is None else min(stop, total)
-    tail = limit == total and (start < total or (total == 0 and stop is None))
+    # A zero-width cluster at the very end: who gets it (see the docstring).
+    reach = (start < total) if total else (start == 0 and (stop is None or stop > 0))
+    tail = limit == total and reach
     return "".join(_keep(cell, start, limit, total, tail, tabsize) for cell in cells)
 
 
@@ -118,3 +121,27 @@ def center(
     pad = max(0, width - used)
     left = pad // 2
     return fillchar * left + text + fillchar * (pad - left)
+
+
+def splice(text: str, head: int, rstart: int, insert: str, ambiguous: int) -> str:
+    """Keep the clusters in ``[0, head)`` and ``[rstart, end)``, putting ``insert`` between.
+
+    Every escape sequence is kept exactly once, in place, and ``insert`` goes where the
+    first dropped cluster was.
+    """
+    cells = list(iter_cells(text, ambiguous=ambiguous))
+    total = total_width(cells)
+    out: list[str] = []
+    pending = True
+    for cell in cells:
+        end = cell.column + cell.width
+        left = end <= head if cell.width else cell.column < head
+        right = rstart <= cell.column and end <= total
+        if not (cell.escape or left) and pending:
+            out.append(insert)
+            pending = False
+        if cell.escape or left or right:
+            out.append(cell.text)
+    if pending:
+        out.append(insert)
+    return "".join(out)

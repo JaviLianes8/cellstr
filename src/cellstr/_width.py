@@ -15,7 +15,7 @@ _TAGS = range(0xE0020, 0xE0080)
 
 def check_ambiguous(ambiguous: int) -> int:
     """Return ``ambiguous`` after checking it is 1 or 2."""
-    if ambiguous not in (1, 2) or isinstance(ambiguous, bool):
+    if type(ambiguous) is not int or ambiguous not in (1, 2):
         raise ValueError(f"ambiguous must be 1 or 2, not {ambiguous!r}")
     return ambiguous
 
@@ -45,23 +45,29 @@ def char_width(char: str, *, ambiguous: int = 1) -> int:
     return code_width(prop(ord(char)), check_ambiguous(ambiguous))
 
 
+def _emoji_sequence(rest: str) -> bool:
+    """True when ``rest`` (after an emoji base) holds a modifier, a tag or a ZWJ + pictograph."""
+    joined = False
+    for ch in rest:
+        code = prop(ord(ch))
+        if code & MODIFIER_BIT or ord(ch) in _TAGS or (joined and code & EXT_PICT_BIT):
+            return True
+        joined = joined or ch == _ZWJ
+    return False
+
+
 def cluster_width(cluster: str, ambiguous: int) -> int:
     """Width of one grapheme cluster, without validating the input."""
     code = prop(ord(cluster[0]))
     if len(cluster) == 1:
         return code_width(code, ambiguous)
     rest = cluster[1:]
-    if code & EMOJI_BIT and not code & MODIFIER_BIT:
-        if _VS15 in rest:
-            return 1
-        if _VS16 in rest:
+    if code & (EMOJI_BIT | EXT_PICT_BIT) and not code & MODIFIER_BIT:
+        # A variation selector only counts right after the base.
+        if code & EMOJI_BIT and rest[0] in (_VS15, _VS16):
+            return 1 if rest[0] == _VS15 else 2
+        if _emoji_sequence(rest):
             return 2
-    if (
-        code & (EMOJI_BIT | EXT_PICT_BIT)
-        and not code & MODIFIER_BIT
-        and (_ZWJ in rest or any(prop(ord(ch)) & MODIFIER_BIT or ord(ch) in _TAGS for ch in rest))
-    ):
-        return 2
     if code & 0x0F == _RI and prop(ord(rest[0])) & 0x0F == _RI:
         return 2
     return sum(code_width(prop(ord(ch)), ambiguous) for ch in cluster)

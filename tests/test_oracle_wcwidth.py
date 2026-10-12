@@ -7,7 +7,7 @@ documented reasons (GUIDE.md, "Differences from the wcwidth package"):
   new, or its East_Asian_Width or General_Category changed. The 15.1.0 values come from
   tests/data/EastAsianWidth-15.1.0.txt, fetched unmodified on 2026-10-12 from
   https://www.unicode.org/Public/15.1.0/ucd/EastAsianWidth.txt (its comments carry the
-  General_Category of every assigned code point).
+  General_Category of every assigned code point). Its SHA-256 is pinned below.
 * policy: spacing marks (Mc) are 1 cell here, as in Kuhn's wcwidth and glibc, and 0 in
   the oracle; SOFT HYPHEN, LINE SEPARATOR and PARAGRAPH SEPARATOR are 1 (Kuhn); a lone
   emoji skin tone modifier is 2 (it is East Asian Wide) where the oracle says 0.
@@ -15,6 +15,7 @@ documented reasons (GUIDE.md, "Differences from the wcwidth package"):
 
 from __future__ import annotations
 
+import hashlib
 import re
 from collections import Counter
 from pathlib import Path
@@ -76,6 +77,11 @@ def _reason(
     return None
 
 
+def test_the_15_1_fixture_is_the_file_as_fetched() -> None:
+    digest = hashlib.sha256(OLD.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+    assert digest == "b08191401dc125f4e84ef262a95754faae6b737c79538e17ea9664a63434e94e"
+
+
 def test_every_code_point_agrees_or_has_a_documented_reason() -> None:
     if wcwidth.list_versions()[-1] != "15.1.0":
         pytest.skip("the documented differences are pinned to an oracle built on Unicode 15.1.0")
@@ -95,8 +101,16 @@ def test_every_code_point_agrees_or_has_a_documented_reason() -> None:
         if reason is None:
             unexplained.append(hex(cp))
     assert unexplained == []
-    assert reasons["agree"] / 0x110000 > 0.998
-    print(dict(reasons))
+    # The exact figures published in GUIDE.md, "Differences from the wcwidth package".
+    assert dict(reasons) == {
+        "agree": 1_112_200,
+        "data: new since 15.1": 1263,
+        "data: East_Asian_Width changed": 188,
+        "data: General_Category changed": 1,
+        "policy: spacing mark": 452,
+        "policy: Kuhn width 1": 3,
+        "policy: lone skin tone": 5,
+    }
 
 
 SEQUENCES = {

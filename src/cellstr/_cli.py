@@ -15,8 +15,8 @@ from ._truncate import fit, truncate
 
 EPILOG = """\
 examples:
-  printf 'abc\\n\\xe4\\xbd\\xa0\\xe5\\xa5\\xbd\\n' | cellstr measure
-  printf 'abc\\n\\xe4\\xbd\\xa0\\xe5\\xa5\\xbd\\n' | cellstr measure --max
+  printf 'abc\\n\\344\\275\\240\\345\\245\\275\\n' | cellstr measure
+  printf 'abc\\n\\344\\275\\240\\345\\245\\275\\n' | cellstr measure --max
   printf 'a long status message\\n' | cellstr truncate 10
   printf '/usr/local/lib/python3/site-packages\\n' | cellstr truncate 16 --position middle
   printf 'id\\n12345\\n' | cellstr pad 8 --align right
@@ -160,6 +160,8 @@ def _run(args: argparse.Namespace, text: str) -> str:
         return f"{max(widths, default=0)}\n" if args.max else "".join(f"{w}\n" for w in widths)
     if args.command in ("pad", "fit"):
         check_fill(args.fill, args.ambiguous)
+    if args.command == "slice" and args.stop is not None and args.stop < args.start:
+        raise ValueError(f"STOP ({args.stop}) must not be less than START ({args.start})")
     change = _transform(args)
     return "".join(change(body) + end for body, end in lines)
 

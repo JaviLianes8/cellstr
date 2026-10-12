@@ -43,11 +43,6 @@ def test_truncate_middle_gives_the_odd_cell_to_the_left() -> None:
     assert truncate("abcdefghij", 6, "~", position="middle") == "abc~ij"
 
 
-def test_truncate_keeps_styles_on_both_sides_of_a_middle_cut() -> None:
-    text = f"{RED}abcdefghij{RESET}"
-    assert truncate(text, 5, "~", position="middle") == f"{RED}ab{RESET}~{RED}ij{RESET}"
-
-
 def test_truncate_never_splits_an_emoji_sequence() -> None:
     result = truncate(f"ab{FAMILY}cd", 4, "~")
     assert result == "ab~" and cell_len(result) == 3

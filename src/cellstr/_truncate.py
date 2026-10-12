@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Literal, NamedTuple
 
 from ._cells import check_tabsize, expand_tabs
-from ._ops import cell_slice, center, check_fill, ljust, rjust
+from ._ops import cell_slice, center, check_fill, ljust, rjust, splice
 from ._width import check_ambiguous, text_width
 
 Position = Literal["end", "start", "middle"]
@@ -43,7 +43,8 @@ def truncate_detailed(
     identifiers), giving the odd cell to the left part. The suffix marks the cut. When
     the suffix alone would not fit, the text is cut to ``width`` with no suffix. Grapheme
     clusters are never split, so a wide character at the cut may leave the result one
-    cell short. Escape sequences in the text are kept; the suffix is inserted as given.
+    cell short. Every escape sequence in the text is kept once, in place; the suffix is
+    inserted as given and must not contain tabs or line breaks.
 
     >>> truncate_detailed("hello world", 8)
     Truncation(text='hello...', width=8, original_width=11, truncated=True)
@@ -52,6 +53,8 @@ def truncate_detailed(
         raise ValueError(f"width must be non-negative, not {width}")
     if position not in _POSITIONS:
         raise ValueError(f"position must be one of {', '.join(_POSITIONS)}, not {position!r}")
+    if any(ch in suffix for ch in "\t\n\r"):
+        raise ValueError("suffix must not contain tabs or line breaks")
     check_ambiguous(ambiguous)
     tabsize = check_tabsize(tabsize)
     if tabsize is not None:
@@ -64,15 +67,12 @@ def truncate_detailed(
         suffix, room = "", width
         position = "start" if position == "start" else "end"
     if position == "end":
-        head, tail = room, 0
+        cut = cell_slice(text, 0, room, ambiguous=ambiguous) + suffix
     elif position == "start":
-        head, tail = 0, room
+        cut = suffix + cell_slice(text, total - room, ambiguous=ambiguous)
     else:
         head = (room + 1) // 2
-        tail = room - head
-    left = cell_slice(text, 0, head, ambiguous=ambiguous) if head or not tail else ""
-    right = cell_slice(text, total - tail, ambiguous=ambiguous) if tail else ""
-    cut = left + suffix + right
+        cut = splice(text, head, total - (room - head), suffix, ambiguous)
     return Truncation(cut, text_width(cut, ambiguous), total, True)
 
 

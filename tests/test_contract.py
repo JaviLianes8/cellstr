@@ -155,7 +155,7 @@ def test_slices_never_exceed_the_range_and_keep_every_escape() -> None:
 def test_truncation_never_exceeds_the_width() -> None:
     for width in range(0, 25):
         for position in ("end", "start", "middle"):
-            result = truncate(SAMPLE, width, position=position)  # type: ignore[arg-type]
+            result = truncate(SAMPLE, width, position=position)
             assert cell_len(result) <= width
 
 

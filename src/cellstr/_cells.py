@@ -28,7 +28,7 @@ class Cell(NamedTuple):
 
 def check_tabsize(tabsize: int | None) -> int | None:
     """Return ``tabsize`` after checking it is None or a positive integer."""
-    if tabsize is not None and (isinstance(tabsize, bool) or tabsize < 1):
+    if tabsize is not None and (type(tabsize) is not int or tabsize < 1):
         raise ValueError(f"tabsize must be a positive integer or None, not {tabsize!r}")
     return tabsize
 

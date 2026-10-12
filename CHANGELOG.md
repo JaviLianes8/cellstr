@@ -26,6 +26,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- `cell_len`, `cell_slice`, `truncate` and the padding functions measure grapheme
+  clusters, so emoji sequences change width: the family emoji was 6 cells and is now 2,
+  a flag was 2 and stays 2, an emoji with VS15 is now 1.
+- `truncate` rejects a suffix that contains a tab or a line break.
 - Width tables move from a hand-vendored Unicode 15.1 extract to generated Unicode
   18.0.0 tables. Spacing marks (Mc) are one cell, as in Kuhn's wcwidth and glibc.
 - `cell_slice` never splits a grapheme cluster, so accents stay on their letter.

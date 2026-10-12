@@ -3,6 +3,6 @@ $ErrorActionPreference = "Stop"
 
 ruff format --check .
 ruff check .
-mypy --strict src
+mypy --strict src tests scripts
 python scripts/gen_ucd_tables.py --check
 pytest

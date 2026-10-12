@@ -31,7 +31,7 @@ dependencies = []
 cellstr = "cellstr._cli:main"
 
 [project.optional-dependencies]
-dev = ["ruff", "mypy", "pytest", "build", "twine"]
+dev = ["ruff", "mypy", "pytest", "build", "twine", "wcwidth==0.2.13"]
 
 [project.urls]
 Homepage = "https://lianes8studio.com"
@@ -63,3 +63,4 @@ strict = true
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-q"
+markers = ["e2e: builds the wheel; needs network access for the build backend"]

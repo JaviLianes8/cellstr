@@ -103,6 +103,7 @@ def test_truncation_and_fit_respect_the_width(seed: int) -> None:
     position = rng.choice(["end", "start", "middle"])
     result = truncate_detailed(text, width, suffix, position=position)  # type: ignore[arg-type]
     assert result.width == cell_len(result.text) <= width
+    assert result.text.count("\x1b") == text.count("\x1b")
     assert result.truncated == (cell_len(text) > width)
     if not result.truncated:
         assert result.text == text

@@ -17,7 +17,7 @@ escape sequence between two code points ends the cluster before it.
 | U+0000, C0 and C1 controls, DEL | 0 (Kuhn returns -1 for controls; 0 is easier to add up) |
 | Nonspacing and enclosing marks (General_Category Mn, Me) | 0 |
 | Format characters (Cf), such as ZERO WIDTH SPACE and ZERO WIDTH JOINER | 0 |
-| SOFT HYPHEN U+00AD | 1 (it is visible when a line breaks there) |
+| SOFT HYPHEN U+00AD | 1, or `ambiguous` since it is East Asian Ambiguous (it is visible) |
 | Hangul medial vowels and final consonants U+1160..U+11FF, U+D7B0..U+D7FF | 0 |
 | East_Asian_Width W (wide) and F (fullwidth) | 2 |
 | East_Asian_Width A (ambiguous) | `ambiguous`, 1 by default |
@@ -73,8 +73,8 @@ ljust("ж", 3, ambiguous=2)  # -> "ж "
 
 **Emoji ZWJ sequences.** A terminal that measures code point by code point, as glibc's
 `wcwidth` does, advances the cursor six cells for the family emoji (2 + 0 + 2 + 0 + 2)
-and often draws three separate faces. Terminals that segment grapheme clusters, such as
-WezTerm and Ghostty, draw one glyph in two cells. `cellstr` measures two. If your
+and often draws three separate faces. Terminals that segment grapheme clusters draw one
+glyph in two cells. `cellstr` measures two. If your
 terminal works per code point, measure with the recipe below.
 
 **Variation selectors.** VS16 asks for emoji presentation. Terminals that ignore it keep
@@ -83,8 +83,8 @@ the next cell; `cellstr` measures two. VS15 asks for text presentation: `cellstr
 one cell, while terminals that ignore it, and the `wcwidth` package, keep the emoji at two.
 
 **Spacing marks.** Vowel signs in Indic scripts such as U+093F are spacing marks (Mc).
-glibc and Kuhn give them one cell, the `wcwidth` package gives them zero. `cellstr` gives
-one, so कि is two cells here.
+Kuhn's reference gives them one cell (only Mn, Me and Cf are zero there), the `wcwidth`
+package gives them zero. `cellstr` gives one, so कि is two cells here.
 
 **Code point by code point recipe.** For a terminal without grapheme support, add up
 single code points yourself:
@@ -132,7 +132,7 @@ dependency. Result: 1,112,200 of 1,114,112 code points agree (99.83 %). Every on
 | Assigned after Unicode 15.1 | 1,263 |
 | East_Asian_Width changed after 15.1 (for example the trigrams U+2630..U+2637 became W) | 188 |
 | General_Category changed after 15.1 (U+1171E became Mc) | 1 |
-| Spacing marks (Mc): 1 here, as in Kuhn and glibc, 0 in `wcwidth` | 452 |
+| Spacing marks (Mc): 1 here, as in Kuhn's reference, 0 in `wcwidth` | 452 |
 | SOFT HYPHEN, LINE SEPARATOR, PARAGRAPH SEPARATOR: 1 here (Kuhn), 0 in `wcwidth` | 3 |
 | Lone skin tone modifier: 2 here (it is East Asian Wide), 0 in `wcwidth` | 5 |
 

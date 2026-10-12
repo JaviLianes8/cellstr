@@ -27,8 +27,8 @@ ROOT = Path(__file__).resolve().parent.parent
 UCD_DIR = ROOT / "data" / "ucd"
 OUT_DIR = ROOT / "src" / "cellstr"
 
-GCB_NAMES = ("Other", "CR", "LF", "Control", "Extend", "ZWJ", "Regional_Indicator")
-GCB_NAMES += ("Prepend", "SpacingMark", "L", "V", "T", "LV", "LVT")
+_GCB_HEAD = ("Other", "CR", "LF", "Control", "Extend", "ZWJ", "Regional_Indicator")
+GCB_NAMES = (*_GCB_HEAD, "Prepend", "SpacingMark", "L", "V", "T", "LV", "LVT")
 INCB_NAMES = ("None", "Linker", "Consonant", "Extend")
 EXT_PICT_BIT = 1 << 4
 INCB_SHIFT = 5
@@ -38,8 +38,8 @@ WIDTH_SHIFT = 9
 ZERO, NARROW, WIDE, AMBIGUOUS = 0, 1, 2, 3
 MAX_CP = 0x10FFFF
 # UAX #11: unassigned code points in these ranges default to W, every other one to N.
-EAW_WIDE_DEFAULTS = ((0x3400, 0x4DBF), (0x4E00, 0x9FFF), (0xF900, 0xFAFF))
-EAW_WIDE_DEFAULTS += ((0x20000, 0x2FFFD), (0x30000, 0x3FFFD))
+_EAW_BMP = ((0x3400, 0x4DBF), (0x4E00, 0x9FFF), (0xF900, 0xFAFF))
+EAW_WIDE_DEFAULTS = (*_EAW_BMP, (0x20000, 0x2FFFD), (0x30000, 0x3FFFD))
 ZERO_CATEGORIES = frozenset({"Cc", "Mn", "Me", "Cf"})
 HANGUL_COMBINING = ((0x1160, 0x11FF), (0xD7B0, 0xD7FF))
 SOFT_HYPHEN = 0x00AD

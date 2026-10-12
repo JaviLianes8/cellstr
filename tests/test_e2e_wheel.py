@@ -12,6 +12,8 @@ import venv
 import zipfile
 from pathlib import Path
 
+import pytest
+
 import cellstr
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -23,6 +25,7 @@ def _run(cmd: list[str], stdin: bytes = b"") -> subprocess.CompletedProcess[byte
     return subprocess.run(cmd, input=stdin, capture_output=True, env=env, timeout=600, check=False)
 
 
+@pytest.mark.e2e
 def test_wheel_installs_and_the_script_works(tmp_path: Path) -> None:
     dist = tmp_path / "dist"
     built = _run(
