@@ -1,0 +1,42 @@
+Unicode Character Database snapshot used by cellstr
+===================================================
+
+Unicode version: 18.0.0
+Fetched: 2026-10-12 (UTC), unmodified, with curl from these URLs:
+
+  EastAsianWidth.txt (UAX #11, East_Asian_Width)
+    https://www.unicode.org/Public/UCD/latest/ucd/EastAsianWidth.txt
+  DerivedGeneralCategory.txt (Mn, Me, Cf and friends)
+    https://www.unicode.org/Public/UCD/latest/ucd/extracted/DerivedGeneralCategory.txt
+  emoji-data.txt (Emoji, Emoji_Presentation, Emoji_Modifier, Extended_Pictographic)
+    https://www.unicode.org/Public/UCD/latest/ucd/emoji/emoji-data.txt
+  GraphemeBreakProperty.txt (Grapheme_Cluster_Break)
+    https://www.unicode.org/Public/UCD/latest/ucd/auxiliary/GraphemeBreakProperty.txt
+  DerivedCoreProperties.txt (Indic_Conjunct_Break, InCB)
+    https://www.unicode.org/Public/UCD/latest/ucd/DerivedCoreProperties.txt
+  GraphemeBreakTest.txt (official segmentation test cases)
+    https://www.unicode.org/Public/UCD/latest/ucd/auxiliary/GraphemeBreakTest.txt
+
+Specifications: UAX #11 East Asian Width https://www.unicode.org/reports/tr11/ ,
+UAX #29 Unicode Text Segmentation https://www.unicode.org/reports/tr29/ and
+UTS #51 Unicode Emoji https://www.unicode.org/reports/tr51/ .
+
+The width rules follow Markus Kuhn's reference wcwidth, fetched the same day from
+https://www.cl.cam.ac.uk/~mgk25/ucs/wcwidth.c (see GUIDE.md for the rules and the
+documented departures).
+
+scripts/gen_ucd_tables.py turns the property files into src/cellstr/_ucd_data.py and
+src/cellstr/_ucd_part*.py. tests/test_ucd_tables.py checks that the committed tables
+match a fresh run of the generator, and tests/test_grapheme_conformance.py runs every
+case in GraphemeBreakTest.txt.
+
+These files are distributed under the Unicode License v3 (LICENSE-UNICODE):
+https://www.unicode.org/license.txt
+
+SHA-256 of the files as fetched:
+  09c928886a178fcafd93c29e4bd59073a058e5a100b716d425cb563ab50f68c9  DerivedCoreProperties.txt
+  d6b151d2d40ee9b1876d26f417980f45ffae47b6055ccf7203cb31f07a030f94  DerivedGeneralCategory.txt
+  a0cf29eacd00cfcaec4381c6b7c281685f18dbb4e7ff82b4076ccb342ca839aa  EastAsianWidth.txt
+  0839dcb79e4ac639ecd538b1abf7c9d22e3f9dd265b7e182d33627aa4d75b45a  GraphemeBreakProperty.txt
+  b0cf047ee94485bbdc846de2b902f5f8a815f6b674f9d04223cddadd91c9df31  GraphemeBreakTest.txt
+  80d00f8e616a0ef27fd6b8de3b758c06383b5d917e2977709578e68baf733bf1  emoji-data.txt
