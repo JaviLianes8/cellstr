@@ -61,15 +61,19 @@ def truncate_detailed(
     if total <= width:
         return Truncation(text, total, total, False)
     room = width - text_width(strip_ansi(suffix), ambiguous)
-    if room < 0:
-        cut = cell_slice(text, total - width) if position == "start" else cell_slice(text, 0, width)
-    elif position == "end":
-        cut = cell_slice(text, 0, room) + suffix
+    if room < 0:  # no room for the suffix: hard cut, and a middle cut becomes an end cut
+        suffix, room = "", width
+        position = "start" if position == "start" else "end"
+    if position == "end":
+        head, tail = room, 0
     elif position == "start":
-        cut = suffix + cell_slice(text, total - room)
+        head, tail = 0, room
     else:
-        left = (room + 1) // 2
-        cut = cell_slice(text, 0, left) + suffix + cell_slice(text, total - (room - left))
+        head = (room + 1) // 2
+        tail = room - head
+    left = cell_slice(text, 0, head, ambiguous=ambiguous) if head or not tail else ""
+    right = cell_slice(text, total - tail, ambiguous=ambiguous) if tail else ""
+    cut = left + suffix + right
     return Truncation(cut, text_width(strip_ansi(cut), ambiguous), total, True)
 
 
