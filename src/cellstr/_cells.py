@@ -71,9 +71,9 @@ def cell_len(text: str, *, ambiguous: int = 1, tabsize: int | None = None) -> in
     """Number of display cells ``text`` occupies, ignoring ANSI escape sequences.
 
     Clusters are measured whole (see ``grapheme_width``), so an emoji ZWJ sequence or a
-    flag counts once. Controls, including CR and LF, add nothing, so this is the width of
-    a single line. ``ambiguous`` and ``tabsize`` are explained in ``char_width`` and
-    ``iter_cells``.
+    flag counts once; an escape sequence ends the cluster before it. Controls, including
+    CR and LF, add nothing, so this is the width of a single line. ``ambiguous`` and
+    ``tabsize`` are explained in ``char_width`` and ``iter_cells``.
 
     >>> cell_len("\\x1b[31mWARN\\x1b[0m"), cell_len("\\u4f60\\u597d"), cell_len("\\u00e9")
     (4, 4, 1)

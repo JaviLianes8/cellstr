@@ -9,8 +9,8 @@ Progress:
 - [x] Grapheme-safe slicing, padding, fit and truncation with typed results
 - [x] ANSI coverage (CSI, OSC 8 with BEL or ST, DCS/APC strings, charset escapes)
 - [x] Command line tool
-- [ ] Docs: docstrings, README, GUIDE, CHANGELOG, version bump
-- [ ] Contract test, oracle cross-check, seeded fuzz, wheel e2e
+- [x] Docs: docstrings, README, GUIDE, CHANGELOG, version bump
+- [x] Contract test, oracle cross-check, seeded fuzz, wheel e2e
 - [ ] Gates green, pull request opened
 - [ ] Independent review findings fixed, trace guard clean
 

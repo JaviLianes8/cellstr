@@ -87,8 +87,8 @@ def truncate(
 ) -> str:
     """Shorten ``text`` to at most ``width`` cells, marking the cut with ``suffix``.
 
-    ``text`` is returned unchanged when it already fits. See ``truncate_detailed`` for
-    the cut positions and the rules.
+    ``text`` is returned unchanged when it already fits; with ``tabsize`` set its tabs
+    are expanded first. See ``truncate_detailed`` for the cut positions and the rules.
 
     >>> truncate("hello world", 8), truncate("/usr/local/lib/python", 12, position="middle")
     ('hello...', '/usr/...thon')
