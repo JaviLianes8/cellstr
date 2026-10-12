@@ -3,11 +3,11 @@
 Progress:
 
 - [x] Brainstorm (this file)
-- [ ] UCD snapshot, generator and embedded tables (Unicode 18.0.0)
-- [ ] Grapheme clusters and grapheme-aware width (emoji, flags, VS15/VS16)
-- [ ] Ambiguous-width policy and tab handling
-- [ ] Grapheme-safe slicing, padding, fit and truncation with typed results
-- [ ] ANSI coverage (CSI, OSC 8 with BEL or ST, DCS/APC strings, charset escapes)
+- [x] UCD snapshot, generator and embedded tables (Unicode 18.0.0)
+- [x] Grapheme clusters and grapheme-aware width (emoji, flags, VS15/VS16)
+- [x] Ambiguous-width policy and tab handling
+- [x] Grapheme-safe slicing, padding, fit and truncation with typed results
+- [x] ANSI coverage (CSI, OSC 8 with BEL or ST, DCS/APC strings, charset escapes)
 - [ ] Command line tool
 - [ ] Docs: docstrings, README, GUIDE, CHANGELOG, version bump
 - [ ] Contract test, oracle cross-check, seeded fuzz, wheel e2e
