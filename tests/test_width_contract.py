@@ -1,20 +1,20 @@
 """char_width over every code point equals the documented rule applied to the raw UCD files.
 
 The expected values are computed here, independently of the generator, straight from
-data/ucd/EastAsianWidth.txt and data/ucd/DerivedGeneralCategory.txt (fetched unmodified
-from unicode.org, see data/ucd/SOURCES.txt). The rule is Markus Kuhn's wcwidth with
+data/ucd/EastAsianWidth.txt and data/ucd/DerivedGeneralCategory.txt (not committed;
+scripts/fetch_upstream.py fetches them as pinned in data/ucd/MANIFEST.json, and these
+tests skip until then). The rule is Markus Kuhn's wcwidth with
 controls at 0, as documented in GUIDE.md.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
+from conftest import UCD, needs_ucd
 
 from cellstr import char_width
 
-UCD = Path(__file__).resolve().parent.parent / "data" / "ucd"
+pytestmark = needs_ucd
 LAST = 0x10FFFF
 
 

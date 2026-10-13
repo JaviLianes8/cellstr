@@ -141,8 +141,9 @@ and keycaps. They differ on VS15 and spacing marks, as described above.
 
 ## Unicode data
 
-`data/ucd/` holds the Unicode 18.0.0 files the tables are built from, fetched unmodified
-from unicode.org; `data/ucd/SOURCES.txt` records the URLs, the date and SHA-256 sums. To
-move to a new Unicode version, replace the files, update `SOURCES.txt`, run
+The tables are built from the Unicode 18.0.0 data files, which are not committed:
+`data/ucd/MANIFEST.json` pins their URLs, sizes and SHA-256 sums, and
+`python scripts/fetch_upstream.py` fetches them into `data/ucd/` (the tests that read them
+skip until then). To move to a new Unicode version, update the manifest, fetch, run
 `python scripts/gen_ucd_tables.py` and the test suite. `tests/test_ucd_tables.py` fails if
 the committed tables differ from a fresh run of the generator.

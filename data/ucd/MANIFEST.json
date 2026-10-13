@@ -1,0 +1,65 @@
+{
+  "DerivedCoreProperties.txt": {
+    "title": "Unicode Character Database 18.0.0, DerivedCoreProperties.txt",
+    "url": "https://www.unicode.org/Public/18.0.0/ucd/DerivedCoreProperties.txt",
+    "revision": "Unicode 18.0.0",
+    "fetched": "2026-10-13",
+    "size": 1159889,
+    "sha256": "09c928886a178fcafd93c29e4bd59073a058e5a100b716d425cb563ab50f68c9",
+    "licence": "Unicode License v3 (https://www.unicode.org/license.txt), see LICENSE-UNICODE"
+  },
+  "DerivedGeneralCategory.txt": {
+    "title": "Unicode Character Database 18.0.0, DerivedGeneralCategory.txt",
+    "url": "https://www.unicode.org/Public/18.0.0/ucd/extracted/DerivedGeneralCategory.txt",
+    "revision": "Unicode 18.0.0",
+    "fetched": "2026-10-13",
+    "size": 282143,
+    "sha256": "d6b151d2d40ee9b1876d26f417980f45ffae47b6055ccf7203cb31f07a030f94",
+    "licence": "Unicode License v3 (https://www.unicode.org/license.txt), see LICENSE-UNICODE"
+  },
+  "EastAsianWidth.txt": {
+    "title": "Unicode Character Database 18.0.0, EastAsianWidth.txt",
+    "url": "https://www.unicode.org/Public/18.0.0/ucd/EastAsianWidth.txt",
+    "revision": "Unicode 18.0.0",
+    "fetched": "2026-10-13",
+    "size": 204705,
+    "sha256": "a0cf29eacd00cfcaec4381c6b7c281685f18dbb4e7ff82b4076ccb342ca839aa",
+    "licence": "Unicode License v3 (https://www.unicode.org/license.txt), see LICENSE-UNICODE"
+  },
+  "GraphemeBreakProperty.txt": {
+    "title": "Unicode Character Database 18.0.0, GraphemeBreakProperty.txt",
+    "url": "https://www.unicode.org/Public/18.0.0/ucd/auxiliary/GraphemeBreakProperty.txt",
+    "revision": "Unicode 18.0.0",
+    "fetched": "2026-10-13",
+    "size": 100009,
+    "sha256": "0839dcb79e4ac639ecd538b1abf7c9d22e3f9dd265b7e182d33627aa4d75b45a",
+    "licence": "Unicode License v3 (https://www.unicode.org/license.txt), see LICENSE-UNICODE"
+  },
+  "GraphemeBreakTest.txt": {
+    "title": "Unicode Character Database 18.0.0, GraphemeBreakTest.txt",
+    "url": "https://www.unicode.org/Public/18.0.0/ucd/auxiliary/GraphemeBreakTest.txt",
+    "revision": "Unicode 18.0.0",
+    "fetched": "2026-10-13",
+    "size": 137090,
+    "sha256": "b0cf047ee94485bbdc846de2b902f5f8a815f6b674f9d04223cddadd91c9df31",
+    "licence": "Unicode License v3 (https://www.unicode.org/license.txt), see LICENSE-UNICODE"
+  },
+  "emoji-data.txt": {
+    "title": "Unicode Character Database 18.0.0, emoji-data.txt",
+    "url": "https://www.unicode.org/Public/18.0.0/ucd/emoji/emoji-data.txt",
+    "revision": "Unicode 18.0.0",
+    "fetched": "2026-10-13",
+    "size": 108719,
+    "sha256": "80d00f8e616a0ef27fd6b8de3b758c06383b5d917e2977709578e68baf733bf1",
+    "licence": "Unicode License v3 (https://www.unicode.org/license.txt), see LICENSE-UNICODE"
+  },
+  "EastAsianWidth-15.1.0.txt": {
+    "title": "Unicode Character Database 15.1.0, EastAsianWidth.txt",
+    "url": "https://www.unicode.org/Public/15.1.0/ucd/EastAsianWidth.txt",
+    "revision": "Unicode 15.1.0",
+    "fetched": "2026-10-13",
+    "size": 194188,
+    "sha256": "b08191401dc125f4e84ef262a95754faae6b737c79538e17ea9664a63434e94e",
+    "licence": "Unicode License v3 (https://www.unicode.org/license.txt), see LICENSE-UNICODE"
+  }
+}

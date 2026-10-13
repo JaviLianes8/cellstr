@@ -16,7 +16,7 @@ from ._props import UNICODE_VERSION
 from ._truncate import Align, Position, Truncation, fit, truncate, truncate_detailed
 from ._width import char_width, grapheme_width
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 __all__ = [
     "UNICODE_VERSION",

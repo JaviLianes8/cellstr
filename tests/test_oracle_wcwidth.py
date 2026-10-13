@@ -5,9 +5,10 @@ documented reasons (GUIDE.md, "Differences from the wcwidth package"):
 
 * data: the oracle's tables are Unicode 15.1.0 and ours are newer, so the code point is
   new, or its East_Asian_Width or General_Category changed. The 15.1.0 values come from
-  tests/data/EastAsianWidth-15.1.0.txt, fetched unmodified on 2026-10-12 from
-  https://www.unicode.org/Public/15.1.0/ucd/EastAsianWidth.txt (its comments carry the
-  General_Category of every assigned code point). Its SHA-256 is pinned below.
+  data/ucd/EastAsianWidth-15.1.0.txt, which is not committed: scripts/fetch_upstream.py
+  fetches it from https://www.unicode.org/Public/15.1.0/ucd/EastAsianWidth.txt as pinned
+  in data/ucd/MANIFEST.json (its comments carry the General_Category of every assigned
+  code point). These tests skip until the Unicode data is fetched.
 * policy: spacing marks (Mc) are 1 cell here, as in Kuhn's wcwidth and glibc, and 0 in
   the oracle; SOFT HYPHEN, LINE SEPARATOR and PARAGRAPH SEPARATOR are 1 (Kuhn); a lone
   emoji skin tone modifier is 2 (it is East Asian Wide) where the oracle says 0.
@@ -21,14 +22,14 @@ from collections import Counter
 from pathlib import Path
 
 import pytest
+from conftest import MANIFEST, UCD, needs_ucd
 
 from cellstr import cell_len, char_width
 
 wcwidth = pytest.importorskip("wcwidth")
 
-ROOT = Path(__file__).resolve().parent.parent
-OLD = ROOT / "tests" / "data" / "EastAsianWidth-15.1.0.txt"
-UCD = ROOT / "data" / "ucd"
+pytestmark = needs_ucd
+OLD = UCD / "EastAsianWidth-15.1.0.txt"
 _ROW = re.compile(r"^([0-9A-F]+)(?:\.\.([0-9A-F]+))?\s*;\s*(\w+)\s*#\s*(\w\w|L&)")
 
 
@@ -78,8 +79,8 @@ def _reason(
 
 
 def test_the_15_1_fixture_is_the_file_as_fetched() -> None:
-    digest = hashlib.sha256(OLD.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
-    assert digest == "b08191401dc125f4e84ef262a95754faae6b737c79538e17ea9664a63434e94e"
+    digest = hashlib.sha256(OLD.read_bytes()).hexdigest()
+    assert digest == MANIFEST[OLD.name]["sha256"]
 
 
 def test_every_code_point_agrees_or_has_a_documented_reason() -> None:

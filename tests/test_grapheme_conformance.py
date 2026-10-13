@@ -1,19 +1,21 @@
 """Run every case of the official Unicode GraphemeBreakTest.txt against iter_graphemes.
 
-The fixture is data/ucd/GraphemeBreakTest.txt, fetched unmodified from unicode.org
-(see data/ucd/SOURCES.txt for the URL, date and checksum).
+The file is data/ucd/GraphemeBreakTest.txt, which is not committed:
+`python scripts/fetch_upstream.py` fetches it as pinned in data/ucd/MANIFEST.json.
+These tests skip until then.
 """
 
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 import pytest
+from conftest import UCD, needs_ucd, ucd_fetched
 
 from cellstr import UNICODE_VERSION, iter_graphemes
 
-FIXTURE = Path(__file__).resolve().parent.parent / "data" / "ucd" / "GraphemeBreakTest.txt"
+FIXTURE = UCD / "GraphemeBreakTest.txt"
+pytestmark = needs_ucd
 
 
 def _cases() -> list[tuple[int, list[str]]]:
@@ -34,7 +36,7 @@ def _cases() -> list[tuple[int, list[str]]]:
     return cases
 
 
-CASES = _cases()
+CASES = _cases() if ucd_fetched() else []
 
 
 def test_fixture_matches_the_embedded_unicode_version() -> None:
