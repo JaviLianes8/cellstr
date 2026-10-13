@@ -1,6 +1,6 @@
 """The complete public promise of cellstr, one test per clause.
 
-Width vectors below are derived from the committed UCD 18.0.0 snapshot (data/ucd/): each
+Width vectors below are derived from the UCD 18.0.0 files (data/ucd/, fetched): each
 named code point's East_Asian_Width, General_Category and emoji properties were read from
 EastAsianWidth.txt, DerivedGeneralCategory.txt and emoji-data.txt. The slicing and
 padding clauses are hand-written statements of the documented behaviour.
@@ -14,6 +14,7 @@ import re
 from pathlib import Path
 
 import pytest
+from conftest import needs_ucd
 
 import cellstr
 from cellstr import (
@@ -121,6 +122,7 @@ def test_the_package_ships_type_information_and_a_script() -> None:
     assert 'cellstr = "cellstr._cli:main"' in pyproject
 
 
+@needs_ucd
 def test_unicode_version_is_the_snapshot_version() -> None:
     head = (ROOT / "data" / "ucd" / "EastAsianWidth.txt").read_text(encoding="utf-8")[:60]
     assert f"EastAsianWidth-{UNICODE_VERSION}.txt" in head

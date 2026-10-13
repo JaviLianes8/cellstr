@@ -98,8 +98,8 @@ does all of it in one small, fully typed, zero-dependency package.
 
 ## License
 
-MIT. See [LICENSE](LICENSE). The Unicode data files in `data/ucd/` and the tables generated
-from them are covered by the Unicode License v3, see [LICENSE-UNICODE](LICENSE-UNICODE).
+MIT. See [LICENSE](LICENSE). The property tables in `src/cellstr/_ucd_*.py` are generated
+from the Unicode Character Database and are covered by the Unicode License v3, see [LICENSE-UNICODE](LICENSE-UNICODE).
 
 ## Links
 

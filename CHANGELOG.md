@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.1]
+
+### Changed
+
+- The Unicode Character Database files are no longer committed. `data/ucd/MANIFEST.json`
+  pins them to Unicode 18.0.0, plus the 15.1.0 EastAsianWidth.txt the oracle test uses
+  (URL, size, sha256, licence), and `scripts/fetch_upstream.py`
+  fetches them; the generator check and the conformance tests skip until then. The
+  generated tables stay in the package and the Unicode licence notice ships in the wheel.
+- The sdist ships only the sources, tests, scripts and docs.
+
 ## [0.2.0]
 
 ### Added
