@@ -49,9 +49,9 @@ def test_ambiguous_policy() -> None:
     assert cell_len("\u0436\u2500x", ambiguous=2) == 5
 
 
-@pytest.mark.parametrize("value", [0, 3, True, -1])
+@pytest.mark.parametrize("value", [0, 3, -1, 10**30])
 def test_ambiguous_must_be_one_or_two(value: int) -> None:
-    with pytest.raises(ValueError, match="ambiguous"):
+    with pytest.raises(ValueError, match="ambiguous must be 1 or 2"):
         cell_len("x", ambiguous=value)
 
 
@@ -117,9 +117,9 @@ def test_tab_stops_restart_after_a_line_break() -> None:
     assert cell_len("abc\n\tx", tabsize=4) == 3 + 4 + 1
 
 
-@pytest.mark.parametrize("value", [0, -2, True])
+@pytest.mark.parametrize("value", [0, -2])
 def test_tabsize_must_be_positive(value: int) -> None:
-    with pytest.raises(ValueError, match="tabsize"):
+    with pytest.raises(ValueError, match="tabsize must be at least 1"):
         cell_len("a\tb", tabsize=value)
 
 
@@ -135,7 +135,10 @@ def test_iter_cells_reports_escapes_columns_and_widths() -> None:
     assert "".join(c.text for c in cells) == f"{RED}a\u4f60{RESET}{SPAIN}"
 
 
-def test_iter_cells_is_lazy_and_validates_on_first_step() -> None:
-    cells = iter_cells("x", ambiguous=5)
-    with pytest.raises(ValueError):
-        next(cells)
+def test_iterators_check_their_arguments_when_called() -> None:
+    with pytest.raises(ValueError, match="ambiguous"):
+        iter_cells("x", ambiguous=5)
+    with pytest.raises(TypeError, match="text must be a str"):
+        iter_graphemes(None)  # type: ignore[arg-type]
+    cells = iter_cells("ab")
+    assert next(cells).text == "a"  # still lazy: one cell at a time

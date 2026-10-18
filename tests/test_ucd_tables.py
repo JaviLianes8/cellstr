@@ -57,10 +57,11 @@ def test_snapshot_files_match_the_manifest() -> None:
 @needs_ucd
 def test_every_snapshot_file_is_the_same_unicode_version() -> None:
     version = _generator().unicode_version(UCD)
-    for path in UCD.glob("*.txt"):
-        if path.name in MANIFEST and not path.name.startswith("EastAsianWidth-"):
-            head = path.read_text(encoding="utf-8")[:2000]
-            assert re.search(rf"(-|Version: ){re.escape(version)}", head), path.name
+    short = version.rsplit(".", 1)[0]  # emoji-test.txt states only "Version: 18.0"
+    pattern = rf"-{re.escape(version)}\.txt|Version: ({re.escape(version)}|{re.escape(short)})$"
+    for name in MANIFEST:
+        head = (UCD / name).read_text(encoding="utf-8")[:2000]
+        assert re.search(pattern, head, re.M), name
 
 
 def test_spot_properties_from_the_tables() -> None:

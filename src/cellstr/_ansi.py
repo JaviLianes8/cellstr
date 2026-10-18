@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from typing import NamedTuple
 
+from ._args import check_text
+
 # One alternative per ECMA-48 escape family, longest first so a string introducer is never
 # mistaken for a two-character escape:
 #   CSI     ESC [ params intermediates final        colours (SGR), cursor moves
@@ -31,12 +33,13 @@ def strip_ansi(text: str) -> str:
 
     Recognised: CSI sequences (SGR colours and styles, cursor movement), OSC sequences
     ended by BEL or ST (window titles, OSC 8 hyperlinks), DCS, SOS, PM and APC strings,
-    charset designations and the single-byte escapes.
+    charset designations and the single-byte escapes. A string sequence with no
+    terminator is never swallowed: the text after its introducer is kept.
 
     >>> strip_ansi("\\x1b[1;31merror\\x1b[0m: \\x1b]8;;https://example.com\\x07docs\\x1b]8;;\\x07")
     'error: docs'
     """
-    return _ANSI_RE.sub("", text)
+    return _ANSI_RE.sub("", check_text(text))
 
 
 class Segment(NamedTuple):

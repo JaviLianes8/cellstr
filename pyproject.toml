@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cellstr"
-version = "0.2.1"
+version = "1.0.0"
 description = "Display-width aware len, slice, pad and truncate for terminal text: wide CJK, emoji sequences, combining marks and ANSI codes"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -13,10 +13,15 @@ license-files = ["LICENSE", "LICENSE-UNICODE"]
 authors = [{ name = "Javier Lianes", email = "javier@lianes8studio.com" }]
 keywords = ["ansi", "terminal", "width", "wcwidth", "unicode", "east-asian-width", "grapheme", "emoji", "truncate", "cli"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Environment :: Console",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
@@ -31,11 +36,11 @@ dependencies = []
 cellstr = "cellstr._cli:main"
 
 [project.optional-dependencies]
-dev = ["ruff", "mypy", "pytest", "build", "twine", "wcwidth==0.2.13"]
+dev = ["ruff", "mypy", "pytest", "pytest-timeout", "build", "twine", "wcwidth==0.9.2"]
 
 [project.urls]
 Homepage = "https://lianes8studio.com"
-Repository = "https://github.com/JaviLianes8/cellstr"
+Source = "https://github.com/JaviLianes8/cellstr"
 Issues = "https://github.com/JaviLianes8/cellstr/issues"
 Changelog = "https://github.com/JaviLianes8/cellstr/blob/main/CHANGELOG.md"
 LinkedIn = "https://www.linkedin.com/in/jlianes/"
@@ -48,6 +53,7 @@ include = [
     "tests",
     "scripts/gen_ucd_tables.py",
     "scripts/fetch_upstream.py",
+    "scripts/capture_glibc.py",
     "data/ucd/MANIFEST.json",
     "CHANGELOG.md",
     "CONTRIBUTING.md",
@@ -77,4 +83,5 @@ strict = true
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-q"
+timeout = 300
 markers = ["e2e: builds the wheel; needs network access for the build backend"]

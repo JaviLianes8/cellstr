@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import argparse
-import os
 import sys
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from typing import NoReturn
 
 from . import __version__
-from ._cells import cell_len
-from ._ops import cell_slice, center, check_fill, ljust, rjust
-from ._truncate import fit, truncate
+from ._args import show
+from ._cli_io import output_lost, read_input, say, write_output
+from ._cli_lines import run
+from ._ops import check_fill
 
 EPILOG = """\
 examples:
@@ -26,24 +26,27 @@ examples:
 Every command reads UTF-8 lines from stdin and writes one result line per input line,
 keeping each line ending. ANSI escape sequences are ignored when measuring and kept in
 the output. --ambiguous 2 counts East Asian Ambiguous characters (Greek, Cyrillic, box
-drawing) as two cells, as CJK terminals draw them. Errors go to stderr with exit
-status 1.
+drawing) as two cells, as CJK terminals draw them. Errors go to stderr: exit status 2
+for a bad command line, 1 when the input is not UTF-8 or the output cannot be written.
 """
+_MESSAGE_LIMIT = 200
 
 
 class _Parser(argparse.ArgumentParser):
     def error(self, message: str) -> NoReturn:
+        if len(message) > _MESSAGE_LIMIT:
+            message = message[: _MESSAGE_LIMIT - 3] + "..."
         self.print_usage(sys.stderr)
-        self.exit(1, f"{self.prog}: error: {message}\n")
+        self.exit(2, f"{self.prog}: error: {message}\n")
 
 
 def _cells(text: str) -> int:
     try:
         value = int(text)
     except ValueError:
-        raise argparse.ArgumentTypeError(f"not an integer: {text!r}") from None
+        raise argparse.ArgumentTypeError(f"not an integer: {show(text)}") from None
     if value < 0:
-        raise argparse.ArgumentTypeError(f"must not be negative: {value}")
+        raise argparse.ArgumentTypeError(f"must not be negative: {show(value)}")
     return value
 
 
@@ -125,60 +128,45 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _lines(text: str) -> list[tuple[str, str]]:
-    """Split ``text`` on LF into ``(body, line ending)`` pairs, keeping CR LF and LF."""
-    pairs: list[tuple[str, str]] = []
-    parts = text.split("\n")
-    for index, body in enumerate(parts):
-        last = index == len(parts) - 1
-        if last and not body:
-            break
-        end = "" if last else "\n"
-        if body.endswith("\r"):
-            body, end = body[:-1], "\r" + end
-        pairs.append((body, end))
-    return pairs
-
-
-def _transform(args: argparse.Namespace) -> Callable[[str], str]:
-    policy = {"ambiguous": args.ambiguous, "tabsize": args.tabsize}
-    if args.command == "truncate":
-        return lambda s: truncate(s, args.width, args.suffix, position=args.position, **policy)
-    if args.command == "fit":
-        options = {"suffix": args.suffix, "position": args.position, "fillchar": args.fill}
-        return lambda s: fit(s, args.width, align=args.align, **options, **policy)
-    if args.command == "pad":
-        pad = {"left": ljust, "right": rjust, "center": center}[args.align]
-        return lambda s: pad(s, args.width, args.fill, **policy)
-    return lambda s: cell_slice(s, args.start, args.stop, **policy)
-
-
-def _run(args: argparse.Namespace, text: str) -> str:
-    lines = _lines(text)
-    if args.command == "measure":
-        widths = [cell_len(b, ambiguous=args.ambiguous, tabsize=args.tabsize) for b, _ in lines]
-        return f"{max(widths, default=0)}\n" if args.max else "".join(f"{w}\n" for w in widths)
-    if args.command in ("pad", "fit"):
-        check_fill(args.fill, args.ambiguous)
+def _check(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    """Refuse the option values argparse cannot check alone, as usage errors."""
+    try:
+        if args.command in ("pad", "fit"):
+            check_fill(args.fill, args.ambiguous)
+        if args.command in ("truncate", "fit") and any(ch in args.suffix for ch in "\t\n\r"):
+            raise ValueError("suffix must not contain tabs or line breaks")
+    except ValueError as exc:
+        parser.error(str(exc))
     if args.command == "slice" and args.stop is not None and args.stop < args.start:
-        raise ValueError(f"STOP ({args.stop}) must not be less than START ({args.start})")
-    change = _transform(args)
-    return "".join(change(body) + end for body, end in lines)
+        parser.error(f"STOP ({args.stop}) must not be less than START ({args.start})")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Run the command line tool and return its exit status."""
-    args = build_parser().parse_args(argv)
+    """Run the command line tool and return its exit status.
+
+    0 on success, 2 for a bad command line, 1 when standard input cannot be read as
+    UTF-8 or the output cannot be written (for example when the reader of a pipe goes
+    away, as with ``| head -1``).
+    """
+    parser = build_parser()
     try:
-        result = _run(args, sys.stdin.buffer.read().decode("utf-8"))
-    except (ValueError, UnicodeDecodeError) as exc:
-        print(f"cellstr: error: {exc}", file=sys.stderr)
+        args = parser.parse_args(argv)
+        _check(parser, args)
+    except SystemExit as exc:  # --help and --version (0) or a usage error (2)
+        status = exc.code if isinstance(exc.code, int) else 2
+        if status == 0:
+            try:  # argparse wrote through the text layer of stdout: push it out now
+                write_output("")
+            except OSError as lost:
+                return output_lost(lost)
+        return status
+    try:
+        result = run(args, read_input())
+    except ValueError as exc:
+        say(str(exc))
         return 1
     try:
-        sys.stdout.buffer.write(result.encode("utf-8", "surrogatepass"))
-        sys.stdout.buffer.flush()
-    except BrokenPipeError:
-        # The reader went away (for example `| head -1`); exit quietly like other filters.
-        devnull = os.open(os.devnull, os.O_WRONLY)
-        os.dup2(devnull, sys.stdout.fileno())
+        write_output(result)
+    except OSError as exc:
+        return output_lost(exc)
     return 0

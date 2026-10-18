@@ -1,9 +1,18 @@
 {
+  "DerivedAge.txt": {
+    "title": "Unicode Character Database 18.0.0, DerivedAge.txt",
+    "url": "https://www.unicode.org/Public/18.0.0/ucd/DerivedAge.txt",
+    "revision": "Unicode 18.0.0",
+    "fetched": "2026-10-18",
+    "size": 142568,
+    "sha256": "58b04334e3a31f9612694bbc3f6bff4a302b7d424565bca9c47e30aa74f8dbac",
+    "licence": "Unicode License v3 (https://www.unicode.org/license.txt), see LICENSE-UNICODE"
+  },
   "DerivedCoreProperties.txt": {
     "title": "Unicode Character Database 18.0.0, DerivedCoreProperties.txt",
     "url": "https://www.unicode.org/Public/18.0.0/ucd/DerivedCoreProperties.txt",
     "revision": "Unicode 18.0.0",
-    "fetched": "2026-10-13",
+    "fetched": "2026-10-18",
     "size": 1159889,
     "sha256": "09c928886a178fcafd93c29e4bd59073a058e5a100b716d425cb563ab50f68c9",
     "licence": "Unicode License v3 (https://www.unicode.org/license.txt), see LICENSE-UNICODE"
@@ -12,7 +21,7 @@
     "title": "Unicode Character Database 18.0.0, DerivedGeneralCategory.txt",
     "url": "https://www.unicode.org/Public/18.0.0/ucd/extracted/DerivedGeneralCategory.txt",
     "revision": "Unicode 18.0.0",
-    "fetched": "2026-10-13",
+    "fetched": "2026-10-18",
     "size": 282143,
     "sha256": "d6b151d2d40ee9b1876d26f417980f45ffae47b6055ccf7203cb31f07a030f94",
     "licence": "Unicode License v3 (https://www.unicode.org/license.txt), see LICENSE-UNICODE"
@@ -21,7 +30,7 @@
     "title": "Unicode Character Database 18.0.0, EastAsianWidth.txt",
     "url": "https://www.unicode.org/Public/18.0.0/ucd/EastAsianWidth.txt",
     "revision": "Unicode 18.0.0",
-    "fetched": "2026-10-13",
+    "fetched": "2026-10-18",
     "size": 204705,
     "sha256": "a0cf29eacd00cfcaec4381c6b7c281685f18dbb4e7ff82b4076ccb342ca839aa",
     "licence": "Unicode License v3 (https://www.unicode.org/license.txt), see LICENSE-UNICODE"
@@ -30,7 +39,7 @@
     "title": "Unicode Character Database 18.0.0, GraphemeBreakProperty.txt",
     "url": "https://www.unicode.org/Public/18.0.0/ucd/auxiliary/GraphemeBreakProperty.txt",
     "revision": "Unicode 18.0.0",
-    "fetched": "2026-10-13",
+    "fetched": "2026-10-18",
     "size": 100009,
     "sha256": "0839dcb79e4ac639ecd538b1abf7c9d22e3f9dd265b7e182d33627aa4d75b45a",
     "licence": "Unicode License v3 (https://www.unicode.org/license.txt), see LICENSE-UNICODE"
@@ -39,27 +48,45 @@
     "title": "Unicode Character Database 18.0.0, GraphemeBreakTest.txt",
     "url": "https://www.unicode.org/Public/18.0.0/ucd/auxiliary/GraphemeBreakTest.txt",
     "revision": "Unicode 18.0.0",
-    "fetched": "2026-10-13",
+    "fetched": "2026-10-18",
     "size": 137090,
     "sha256": "b0cf047ee94485bbdc846de2b902f5f8a815f6b674f9d04223cddadd91c9df31",
+    "licence": "Unicode License v3 (https://www.unicode.org/license.txt), see LICENSE-UNICODE"
+  },
+  "PropList.txt": {
+    "title": "Unicode Character Database 18.0.0, PropList.txt",
+    "url": "https://www.unicode.org/Public/18.0.0/ucd/PropList.txt",
+    "revision": "Unicode 18.0.0",
+    "fetched": "2026-10-18",
+    "size": 149040,
+    "sha256": "f438f532e8737bb8a2702126cdf9c4af5e357c58c7acf9d9eb2fc7c1a1d955d6",
     "licence": "Unicode License v3 (https://www.unicode.org/license.txt), see LICENSE-UNICODE"
   },
   "emoji-data.txt": {
     "title": "Unicode Character Database 18.0.0, emoji-data.txt",
     "url": "https://www.unicode.org/Public/18.0.0/ucd/emoji/emoji-data.txt",
     "revision": "Unicode 18.0.0",
-    "fetched": "2026-10-13",
+    "fetched": "2026-10-18",
     "size": 108719,
     "sha256": "80d00f8e616a0ef27fd6b8de3b758c06383b5d917e2977709578e68baf733bf1",
     "licence": "Unicode License v3 (https://www.unicode.org/license.txt), see LICENSE-UNICODE"
   },
-  "EastAsianWidth-15.1.0.txt": {
-    "title": "Unicode Character Database 15.1.0, EastAsianWidth.txt",
-    "url": "https://www.unicode.org/Public/15.1.0/ucd/EastAsianWidth.txt",
-    "revision": "Unicode 15.1.0",
-    "fetched": "2026-10-13",
-    "size": 194188,
-    "sha256": "b08191401dc125f4e84ef262a95754faae6b737c79538e17ea9664a63434e94e",
+  "emoji-test.txt": {
+    "title": "Unicode Emoji 18.0, emoji-test.txt (UTS #51 test data)",
+    "url": "https://www.unicode.org/Public/18.0.0/emoji/emoji-test.txt",
+    "revision": "Unicode 18.0.0",
+    "fetched": "2026-10-18",
+    "size": 671655,
+    "sha256": "8f3735cda1f92a779d78af67cf86066bb1f07143dc22f2ac29394d9bc57ab21a",
+    "licence": "Unicode License v3 (https://www.unicode.org/license.txt), see LICENSE-UNICODE"
+  },
+  "emoji-variation-sequences.txt": {
+    "title": "Unicode Character Database 18.0.0, emoji-variation-sequences.txt",
+    "url": "https://www.unicode.org/Public/18.0.0/ucd/emoji/emoji-variation-sequences.txt",
+    "revision": "Unicode 18.0.0",
+    "fetched": "2026-10-18",
+    "size": 38317,
+    "sha256": "ff1707564aa1f1b2fcf4ec92d609d4cb26940bc0d4dcf07f5328ad6879e84da3",
     "licence": "Unicode License v3 (https://www.unicode.org/license.txt), see LICENSE-UNICODE"
   }
 }

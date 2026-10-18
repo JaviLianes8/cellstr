@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
+from ._args import check_text
 from ._props import EXT_PICT_BIT, GCB, INCB_SHIFT, prop
 
 _CR = GCB["CR"]
@@ -84,18 +85,24 @@ def _joins(
     return prev == _RI and cur == _RI and ri_run % 2 == 1  # GB12, GB13
 
 
-def iter_graphemes(s: str) -> Iterator[str]:
-    """Yield the extended grapheme clusters of ``s`` (UAX #29), left to right.
+def iter_graphemes(text: str) -> Iterator[str]:
+    """Return an iterator over the extended grapheme clusters of ``text`` (UAX #29).
 
     A grapheme cluster is what a reader perceives as one character: a base letter with
     its combining marks, a Hangul syllable built from jamo, an emoji ZWJ sequence, a
     flag made of two regional indicators, an Indic conjunct, or a CR LF pair. The
-    clusters concatenate back to ``s`` exactly.
+    clusters come left to right and concatenate back to ``text`` exactly. Escape
+    sequences get no special treatment here; ``iter_cells`` handles terminal text.
+    ``text`` is checked when the function is called, not when iteration starts.
 
-    >>> [len(g) for g in iter_graphemes("e\\u0301\\U0001f1ea\\U0001f1f8")]
-    [2, 2]
+    >>> [len(g) for g in iter_graphemes("e\\u0301\\U0001f1ea\\U0001f1f8!")]
+    [2, 2, 1]
     """
+    return _clusters(check_text(text))
+
+
+def _clusters(text: str) -> Iterator[str]:
     start = 0
-    for end in grapheme_ends(s):
-        yield s[start:end]
+    for end in grapheme_ends(text):
+        yield text[start:end]
         start = end

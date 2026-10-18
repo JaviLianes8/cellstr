@@ -1,0 +1,13 @@
+{
+  "glibc-wcwidth.txt": {
+    "what": "glibc wcwidth() of every code point U+0000..U+10FFFF, run-length encoded",
+    "produced_by": "python3 -I scripts/capture_glibc.py > tests/fixtures/glibc-wcwidth.txt",
+    "system": "Ubuntu 26.04 LTS under WSL 2 (kernel 6.6.87.2-microsoft-standard-WSL2), Windows 11 Pro",
+    "glibc": "2.43, Ubuntu package libc6 2.43-2ubuntu2.4 (amd64)",
+    "python": "3.14.4",
+    "locale": "C.UTF-8",
+    "captured": "2026-10-18",
+    "size": 28995,
+    "sha256": "2c21aae4d54a0c1b94f010e8dc074676dedb91d11d916c076936ebd83392dce6"
+  }
+}

@@ -49,7 +49,7 @@ def test_truncate_never_splits_an_emoji_sequence() -> None:
 
 
 def test_truncate_rejects_bad_arguments() -> None:
-    with pytest.raises(ValueError, match="non-negative"):
+    with pytest.raises(ValueError, match="width must not be negative, not -1"):
         truncate("x", -1)
     with pytest.raises(ValueError, match="position"):
         truncate("x", 1, position="left")  # type: ignore[arg-type]

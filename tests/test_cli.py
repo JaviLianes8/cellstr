@@ -61,15 +61,29 @@ def test_slice_keeps_escapes() -> None:
     assert run("slice", "1", "3", stdin=b"abcdef\n").stdout == b"bc\n"
 
 
-def test_errors_go_to_stderr_with_status_one() -> None:
-    for args in (("truncate", "-1"), ("truncate", "x"), ("pad", "3", "--fill", "ab"), ("nope",)):
+def test_usage_errors_go_to_stderr_with_status_two() -> None:
+    usage = [
+        ("truncate", "-1"),
+        ("truncate", "x"),
+        ("pad", "3", "--fill", "ab"),
+        ("fit", "3", "--fill", "─", "--ambiguous", "2"),
+        ("truncate", "3", "-s", "a\tb"),
+        ("slice", "5", "2"),
+        ("measure", "--tabsize", "0"),
+        ("nope",),
+        (),
+    ]
+    for args in usage:
         done = run(*args, stdin=b"abc\n")
-        assert done.returncode == 1, args
+        assert done.returncode == 2, args
         assert done.stdout == b"" and b"error" in done.stderr, args
-    bad = run("measure", stdin=b"\xff\n")
-    assert bad.returncode == 1 and b"utf-8" in bad.stderr
-    assert run("measure", "--tabsize", "0").returncode == 1
-    assert run().returncode == 1
+
+
+def test_unreadable_input_is_status_one() -> None:
+    bad = run("measure", stdin=b"ok\n\xff\n")
+    assert (bad.returncode, bad.stdout) == (1, b"")
+    expected = "cellstr: error: standard input is not valid UTF-8 (byte 0xff at offset 3)"
+    assert bad.stderr.decode().splitlines() == [expected]
 
 
 def test_help_shows_runnable_examples_and_version() -> None:

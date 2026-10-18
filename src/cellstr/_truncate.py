@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from typing import Literal, NamedTuple
 
-from ._cells import check_tabsize, expand_tabs
+from ._args import check_ambiguous, check_choice, check_tabsize, check_text, check_width
+from ._cells import expand
 from ._ops import cell_slice, center, check_fill, ljust, rjust, splice
-from ._width import check_ambiguous, text_width
+from ._width import text_width
 
 Position = Literal["end", "start", "middle"]
 Align = Literal["left", "right", "center"]
@@ -18,13 +19,19 @@ class Truncation(NamedTuple):
     """The outcome of ``truncate_detailed``.
 
     ``text`` is the result, ``width`` the cells it occupies, ``original_width`` the cells
-    the input occupied and ``truncated`` whether anything was cut.
+    the input occupied (after tab expansion) and ``truncated`` whether anything was cut.
+
+    >>> Truncation("hi", 2, 2, False).truncated
+    False
     """
 
     text: str
     width: int
     original_width: int
     truncated: bool
+
+
+Truncation.__module__ = "cellstr"
 
 
 def truncate_detailed(
@@ -44,36 +51,37 @@ def truncate_detailed(
     the suffix alone would not fit, the text is cut to ``width`` with no suffix. Grapheme
     clusters are never split, so a wide character at the cut may leave the result one
     cell short. Every escape sequence in the text is kept once, in place; the suffix is
-    inserted as given and must not contain tabs or line breaks.
+    inserted as given (it may hold escape sequences) and must not contain tabs or line
+    breaks. ``width`` is a non-negative integer.
 
     >>> truncate_detailed("hello world", 8)
     Truncation(text='hello...', width=8, original_width=11, truncated=True)
     """
-    if width < 0:
-        raise ValueError(f"width must be non-negative, not {width}")
-    if position not in _POSITIONS:
-        raise ValueError(f"position must be one of {', '.join(_POSITIONS)}, not {position!r}")
+    text = check_text(text)
+    limit = check_width(width)
+    suffix = check_text(suffix, "suffix")
     if any(ch in suffix for ch in "\t\n\r"):
         raise ValueError("suffix must not contain tabs or line breaks")
-    check_ambiguous(ambiguous)
-    tabsize = check_tabsize(tabsize)
-    if tabsize is not None:
-        text = expand_tabs(text, tabsize, ambiguous=ambiguous)
-    total = text_width(text, ambiguous)
-    if total <= width:
+    where = check_choice(position, "position", _POSITIONS)
+    policy = check_ambiguous(ambiguous)
+    tabs = check_tabsize(tabsize)
+    if tabs is not None:
+        text = expand(text, tabs, policy)
+    total = text_width(text, policy)
+    if total <= limit:
         return Truncation(text, total, total, False)
-    room = width - text_width(suffix, ambiguous)
+    room = limit - text_width(suffix, policy)
     if room < 0:  # no room for the suffix: hard cut, and a middle cut becomes an end cut
-        suffix, room = "", width
-        position = "start" if position == "start" else "end"
-    if position == "end":
-        cut = cell_slice(text, 0, room, ambiguous=ambiguous) + suffix
-    elif position == "start":
-        cut = suffix + cell_slice(text, total - room, ambiguous=ambiguous)
+        suffix, room = "", limit
+        where = "start" if where == "start" else "end"
+    if where == "end":
+        cut = cell_slice(text, 0, room, ambiguous=policy) + suffix
+    elif where == "start":
+        cut = suffix + cell_slice(text, total - room, ambiguous=policy)
     else:
         head = (room + 1) // 2
-        cut = splice(text, head, total - (room - head), suffix, ambiguous)
-    return Truncation(cut, text_width(cut, ambiguous), total, True)
+        cut = splice(text, head, total - (room - head), suffix, policy)
+    return Truncation(cut, text_width(cut, policy), total, True)
 
 
 def truncate(
@@ -120,11 +128,11 @@ def fit(
     >>> fit("42", 5, align="right")
     '   42'
     """
-    if align not in _ALIGNS:
-        raise ValueError(f"align must be one of {', '.join(_ALIGNS)}, not {align!r}")
-    check_fill(fillchar, check_ambiguous(ambiguous))
+    side = check_choice(align, "align", _ALIGNS)
+    policy = check_ambiguous(ambiguous)
+    fill = check_fill(fillchar, policy)
     cut = truncate_detailed(
-        text, width, suffix, position=position, ambiguous=ambiguous, tabsize=tabsize
+        text, width, suffix, position=position, ambiguous=policy, tabsize=tabsize
     ).text
-    pad = {"left": ljust, "right": rjust, "center": center}[align]
-    return pad(cut, width, fillchar, ambiguous=ambiguous)
+    pad = {"left": ljust, "right": rjust, "center": center}[side]
+    return pad(cut, width, fill, ambiguous=policy)

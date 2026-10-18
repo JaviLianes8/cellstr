@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from ._ansi import segments
+from ._args import check_ambiguous, check_text, show
 from ._graphemes import grapheme_ends
 from ._props import AMBIGUOUS, EMOJI_BIT, EXT_PICT_BIT, GCB, MODIFIER_BIT, WIDTH_SHIFT, prop
 
@@ -11,13 +12,6 @@ _VS15 = "\ufe0e"
 _VS16 = "\ufe0f"
 _ZWJ = "\u200d"
 _TAGS = range(0xE0020, 0xE0080)
-
-
-def check_ambiguous(ambiguous: int) -> int:
-    """Return ``ambiguous`` after checking it is 1 or 2."""
-    if type(ambiguous) is not int or ambiguous not in (1, 2):
-        raise ValueError(f"ambiguous must be 1 or 2, not {ambiguous!r}")
-    return ambiguous
 
 
 def code_width(code: int, ambiguous: int) -> int:
@@ -40,8 +34,9 @@ def char_width(char: str, *, ambiguous: int = 1) -> int:
     >>> char_width("\\u2500", ambiguous=2)
     2
     """
+    char = check_text(char, "char")
     if len(char) != 1:
-        raise ValueError(f"char_width expects a single character, got {len(char)}")
+        raise ValueError(f"char must be a single code point, not {show(char)}")
     return code_width(prop(ord(char)), check_ambiguous(ambiguous))
 
 
@@ -88,8 +83,9 @@ def grapheme_width(cluster: str, *, ambiguous: int = 1) -> int:
     >>> grapheme_width("\\u2764\\ufe0f"), grapheme_width("\\u2764"), grapheme_width("e\\u0301")
     (2, 1, 1)
     """
+    cluster = check_text(cluster, "cluster")
     if not cluster or next(grapheme_ends(cluster)) != len(cluster):
-        raise ValueError("grapheme_width expects exactly one grapheme cluster")
+        raise ValueError(f"cluster must be exactly one grapheme cluster, not {show(cluster)}")
     return cluster_width(cluster, check_ambiguous(ambiguous))
 
 

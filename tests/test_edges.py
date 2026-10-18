@@ -43,15 +43,15 @@ def test_suffix_with_tabs_or_line_breaks_is_rejected(suffix: str) -> None:
         truncate("abcdef", 3, suffix, tabsize=4)
 
 
-@pytest.mark.parametrize("bad", [2.0, "2", None])
+@pytest.mark.parametrize("bad", [2.0, "2", None, True])
 def test_ambiguous_must_be_an_int(bad: object) -> None:
-    with pytest.raises(ValueError, match="ambiguous"):
+    with pytest.raises(TypeError, match="ambiguous must be an int"):
         cell_len("\u03b1", ambiguous=bad)  # type: ignore[arg-type]
 
 
-@pytest.mark.parametrize("bad", [2.5, 4.0, "4"])
+@pytest.mark.parametrize("bad", [2.5, 4.0, "4", True])
 def test_tabsize_must_be_an_int(bad: object) -> None:
-    with pytest.raises(ValueError, match="tabsize"):
+    with pytest.raises(TypeError, match="tabsize must be an int"):
         cell_len("a\tb", tabsize=bad)  # type: ignore[arg-type]
 
 

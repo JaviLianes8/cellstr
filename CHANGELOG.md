@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-18
+
+First release on PyPI. The public API is stable from this release on: the nineteen names
+in `cellstr.__all__`, their signatures, defaults and error types follow Semantic
+Versioning.
+
 ## [0.2.1]
 
 ### Changed
