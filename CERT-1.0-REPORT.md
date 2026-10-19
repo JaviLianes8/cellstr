@@ -18,6 +18,7 @@ Progress:
 - [x] PR #4 and trace guard CLEAN
 - [x] QA round 1: five lenses run, every finding fixed (see QA lenses)
 - [x] QA round 2: round 1 confirmed fixed, eleven new findings fixed, none disputed (8366709)
+- [x] QA round 3: round 2 confirmed fixed, thirteen new findings fixed, none disputed (c0d8725)
 - [ ] Five QA lenses PASS on re-verification (item 19)
 - [ ] Independent review (item 16)
 
@@ -315,5 +316,51 @@ of the branch with the ten Unicode files fetched and wcwidth 0.9.2: `ruff format
 .`, `ruff check .`, `mypy --strict src`, `mypy --strict src tests scripts` and `python
 scripts/gen_ucd_tables.py --check` exit 0; `pytest` 2,751 passed, none skipped, in 61 s.
 The commit after it changes only this report.
+
+Disputed findings: none.
+
+### Round 3, on 0ca1732
+
+Lenses a, b and e re-ran their round 2 findings on 0ca1732: A6, N1 and N2 are fixed, and
+lens e's seven round 2 mutants are killed. Their sweep of the new suffix seam found that
+a glued piece could also make the joined cluster narrower, not only wider, and nine
+surviving mutants of the old `Joiner._grows` and `_add_fixed` rules:
+
+| Lens | Id | Finding | Fix |
+| --- | --- | --- | --- |
+| a | A7 | a suffix could fuse with the kept text into a narrower cluster (thumbs up + skin tone: 4 cells kept, 2 shown), against "its width is the width of the pieces it keeps" | behaviour: see the rule below; GUIDE, `truncate_detailed` docstring and CHANGELOG say a dropped piece can leave the result shorter still, or without the suffix |
+| a | A8 | a zero-width suffix cluster after an emoji was dropped even when it did not widen it (U+2764 + U+0301 is one cell) | behaviour: it now stays, as the docs said |
+| b | N3 | a cut or a suffix could fuse two kept pieces into a narrower emoji the text did not hold (man, ZWJ ... laptop became the technologist emoji, 2 cells for 4) | behaviour: see the rule below |
+| e | M1 to M9 | mutants of `_grows` and `_add_fixed` survived (ambiguous policy, multi-code-point suffix cluster, `tail[0]`, `!=`, `<= 1`, EXT_PICT head, forgotten scan state) | the code they mutate is gone; each repro is pinned in `tests/test_fusion_seams.py` with its value under the new rule |
+| e | O1 | docs said only a widening suffix cluster goes, but one that keeps or narrows the width could go too and the suffix could vanish | docs: the rule and the vanishing suffix are documented |
+
+The rule now, in `Joiner._add`: a piece that joins the cluster before it in the result
+stays only when the joined cluster measures the sum of the two widths, measured with the
+caller's ambiguous policy; otherwise it is dropped, whether it comes from the text or is
+the start of the suffix. The joiner keeps the last cluster of the result (across glues)
+and measures the glued text with the same segmentation as the whole result. So every
+result is exactly as wide as the pieces it keeps; A7, A8, N3 and O1 hold by
+construction. The old break-state scanner (`scan`, `Scan`) is no longer used and is gone.
+Two round 2 test names promised more than their cases checked (lens b): they are now
+`test_a_middle_cut_keeps_a_zwj_with_its_emoji_when_the_right_part_does_not_fit` and
+`test_a_middle_cut_leaves_out_a_right_cluster_wider_than_its_part`, and the real seams
+are pinned in `tests/test_fusion_seams.py` (two lone regional indicators that a cut
+brings together form a flag, two cells as before, which the rule allows).
+
+The new tests were run against the 0ca1732 sources first: 5 of their functions failed
+(A7, N3 middle and suffix, A8, the ambiguous policy), the rest pin values the old code
+already gave. Mutation check of the new joiner, 15 mutants applied one at a time (glued
+or head width with ambiguous=1, `!=` to `>` and to `<`, open cluster forgotten or ignored
+after a glue, suffix cluster width with ambiguous=1 or 0, suffix split per code point,
+`tail[0]` in both may-join checks, last cluster taken as the whole piece, the width check
+skipped, the open cluster not reset after the rest of a suffix or after an escape): all
+15 killed, by `tests/test_fusion_seams.py` or `tests/test_stray_escapes.py`. CHANGELOG
+updated (the `cell_slice`/`truncate` seam entry).
+
+Fix in commit c0d8725. Gates at c0d8725 on Elena's PC (CPython 3.14), from a fresh clone
+of the branch with the ten Unicode files fetched and wcwidth 0.9.2, pytest-timeout 300 s:
+`ruff format --check .`, `ruff check .`, `mypy --strict src`, `mypy --strict src tests
+scripts` and `python scripts/gen_ucd_tables.py --check` exit 0; `pytest` exits 0 on
+2,765 collected tests. The commit after it changes only this report.
 
 Disputed findings: none.
