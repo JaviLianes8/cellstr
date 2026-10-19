@@ -1,11 +1,13 @@
 """Hostile input shapes cost time in proportion to their length, never quadratically.
 
-Each shape is timed at two sizes four times apart, keeping the fastest of three runs; a
-linear cost grows about four times, a quadratic one sixteen, and the bound sits between.
+Each shape is timed at two sizes eight times apart, keeping the fastest of three runs with
+the garbage collector paused; a linear cost grows about eight times, a quadratic one
+sixty-four, and the bound sits well between.
 """
 
 from __future__ import annotations
 
+import gc
 import time
 from collections.abc import Callable
 
@@ -37,15 +39,19 @@ OPERATIONS: dict[str, Callable[[str], object]] = {
     "iter_graphemes": lambda s: sum(1 for _ in iter_graphemes(s)),
     "strip_ansi": strip_ansi,
 }
-SMALL = 4_000
+SMALL = 2_000
 
 
 def _fastest(operation: Callable[[str], object], text: str) -> float:
     best = float("inf")
-    for _ in range(3):
-        start = time.perf_counter()
-        operation(text)
-        best = min(best, time.perf_counter() - start)
+    gc.disable()
+    try:
+        for _ in range(3):
+            start = time.perf_counter()
+            operation(text)
+            best = min(best, time.perf_counter() - start)
+    finally:
+        gc.enable()
     return best
 
 
@@ -54,6 +60,6 @@ def _fastest(operation: Callable[[str], object], text: str) -> float:
 def test_cost_grows_linearly(shape: str, operation: str) -> None:
     run, make = OPERATIONS[operation], SHAPES[shape]
     small = _fastest(run, make(SMALL))
-    large = _fastest(run, make(4 * SMALL))
+    large = _fastest(run, make(8 * SMALL))
     # The floor keeps timer noise on very fast calls from deciding the ratio.
-    assert large <= 9 * max(small, 0.002), (small, large)
+    assert large <= 20 * max(small, 0.002), (small, large)
