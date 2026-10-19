@@ -33,12 +33,13 @@ def cell_slice(
     ``tabsize`` set, a tab becomes the spaces it covers inside the range, so the layout
     survives. ``start`` and ``stop`` are non-negative integers; ``stop=None`` means the end.
 
-    The result never holds an escape sequence or a wider cluster that the text did not
-    hold. A stray ESC (one that starts no complete sequence) is dropped when the result
-    ends with it or goes on with printable ASCII, which could extend it into a sequence,
-    and a zero-width cluster that the cut glues to an emoji, widening it, is dropped. Any
-    other one stays and joins its new neighbour at the same width, as a combining mark
-    that followed a tab does with the space before it.
+    The result never holds an escape sequence that the text did not hold, and its width
+    is the sum of the clusters it keeps. A stray ESC (one that starts no complete
+    sequence) is dropped when the result ends with it or goes on with printable ASCII,
+    which could extend it into a sequence. A cluster that the cut puts after a new
+    neighbour and that joins it, such as VS16 or a tag character after an emoji, stays
+    only when the joined cluster measures the sum of the two, as a combining mark that
+    followed a tab does on the space before it; otherwise it is dropped.
 
     For plain text, ``cell_slice(t, 0, k) + cell_slice(t, k)`` equals ``t`` whenever
     ``k`` does not fall inside a wide cluster.

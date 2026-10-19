@@ -2,18 +2,19 @@
 
 Cutting, padding and tab expansion put next to each other pieces that were not neighbours
 in the input. Two things could then appear that the input did not hold: an escape sequence,
-when a stray ESC (one that starts no complete sequence) meets printable ASCII, and a wider
-grapheme cluster, when an orphan such as VS16 or a tag character meets an emoji. ``Joiner``
-drops the stray ESC, or the cluster that would fuse, in exactly those cases, for the
-clusters of the text and for the text the caller adds alike.
+when a stray ESC (one that starts no complete sequence) meets printable ASCII, and a cluster
+of another width, when a piece glues to the cluster before it (VS16 or a tag character after
+an emoji, an emoji after a ZWJ). ``Joiner`` drops the stray ESC, or the piece that would glue
+at another width, in exactly those cases, for the clusters of the text and for the text the
+caller adds alike. So the width of the result is always the sum of the pieces it keeps.
 """
 
 from __future__ import annotations
 
 from ._ansi import segments
-from ._graphemes import Scan, grapheme_ends, may_join, scan
-from ._props import EMOJI_BIT, EXT_PICT_BIT, MODIFIER_BIT, prop
-from ._width import cluster_width, code_width
+from ._graphemes import grapheme_ends, may_join
+from ._props import prop
+from ._width import cluster_width, text_width
 
 _ESC = "\x1b"
 
@@ -24,7 +25,7 @@ class Joiner:
     def __init__(self, ambiguous: int) -> None:
         self._parts: list[str] = []
         self._tail = ""  # the text piece kept last; empty at the start and after an escape
-        self._state: Scan | None = None  # break state after the tail, computed on demand
+        self._open: str | None = None  # the last cluster of the result; None: of the tail
         self._stray = 0  # stray ESCs in a row, waiting for the code point that follows them
         self._ambiguous = ambiguous
 
@@ -32,10 +33,10 @@ class Joiner:
         """Keep a complete escape sequence."""
         self._settle(sequence)
         self._parts.append(sequence)
-        self._tail, self._state = "", None
+        self._tail, self._open = "", None
 
     def cluster(self, text: str, width: int) -> None:
-        """Keep a grapheme cluster of the input unless it would fuse into a wider cluster."""
+        """Keep a grapheme cluster of the input unless it would glue at another width."""
         if text == _ESC:
             self._stray += 1
         else:
@@ -45,7 +46,8 @@ class Joiner:
     def fixed(self, text: str) -> None:
         """Keep text the caller adds (a suffix, spaces for a tab); stray ESCs in it may go.
 
-        A cluster of it that would glue to the kept text and widen it goes, as in ``cluster``.
+        A cluster of it that would glue to the kept text at another width goes, as in
+        ``cluster``.
         """
         for index, piece in enumerate(text.split(_ESC)):
             if index:
@@ -71,7 +73,7 @@ class Joiner:
         if self._stray:
             if not " " <= following[0] <= "~":
                 self._parts.append(_ESC * self._stray)
-                self._tail, self._state = _ESC, None
+                self._tail, self._open = _ESC, None
             self._stray = 0
 
     def _add_fixed(self, piece: str) -> None:
@@ -81,30 +83,28 @@ class Joiner:
             self._add(piece[:end], cluster_width(piece[:end], self._ambiguous))
             piece = piece[end:]
         if piece:
-            self._add(piece, None)
+            self._parts.append(piece)
+            self._tail, self._open = piece, None
 
-    def _add(self, text: str, width: int | None) -> None:
+    def _add(self, text: str, width: int) -> None:
         tail = self._tail
         if tail and may_join(prop(ord(tail[-1])), prop(ord(text[0]))):
-            if self._state is None:
-                self._state = scan(tail, None)[1]
-            before = self._state
-            joined, after = scan(text, before)
-            if joined and before is not None:
-                if width is not None and self._grows(text, width, before[4]):
-                    return
-                self._parts.append(text)
-                self._tail, self._state = text, after
+            head = self._open if self._open is not None else _last_cluster(tail)
+            glued = head + text
+            # A cluster starts a fresh run of the break rules, so ``glued`` splits as it
+            # does in the whole result; when ``text`` does not join, the widths add up.
+            if text_width(glued, self._ambiguous) != cluster_width(head, self._ambiguous) + width:
                 return
+            self._parts.append(text)
+            self._tail, self._open = text, _last_cluster(glued)
+            return
         self._parts.append(text)
-        self._tail, self._state = text, None
+        self._tail, self._open = text, None
 
-    def _grows(self, text: str, width: int, head: int) -> bool:
-        """True when ``text``, glued to a cluster starting with ``head``, would widen it.
 
-        Glued clusters add up their code points, except when the first is an emoji: then
-        a variation selector, a tag or a modifier can make the whole two cells.
-        """
-        if width < sum(code_width(prop(ord(char)), self._ambiguous) for char in text):
-            return True
-        return width == 0 and bool(head & (EMOJI_BIT | EXT_PICT_BIT)) and not head & MODIFIER_BIT
+def _last_cluster(text: str) -> str:
+    start = 0
+    for end in grapheme_ends(text):
+        if end < len(text):
+            start = end
+    return text[start:]

@@ -55,12 +55,15 @@ def truncate_detailed(
     clusters are never split, so a wide cluster at a cut may leave the result short by
     less than its width. Every escape sequence in the text is kept once, in place; the
     suffix is inserted as given (it may hold escape sequences) and must not contain tabs
-    or line breaks. As in ``cell_slice``, the result never holds an escape sequence or a
-    wider cluster that the text and the suffix did not hold: a cluster at the start of
-    the suffix that would glue to the kept text and widen it, such as VS16 after an
-    emoji, is dropped, so the result is never wider than ``width``. ``width`` is a
-    non-negative integer. With ``tabsize`` set, every tab in the result becomes the
-    spaces it covers there, as in ``cell_slice``.
+    or line breaks. As in ``cell_slice``, the result never holds an escape sequence that
+    the text and the suffix did not hold, and a cluster that the cut or the suffix puts
+    after a new neighbour stays only when the two join at the sum of their widths: VS16
+    or a skin tone modifier after an emoji, or an emoji after a kept ZWJ, is dropped,
+    whether it comes from the text or starts the suffix. So the result is never wider
+    than ``width`` and its width is the sum of the pieces it keeps, but a dropped piece
+    can leave it shorter still, or without the suffix. ``width`` is a non-negative
+    integer. With ``tabsize`` set, every tab in the result becomes the spaces it covers
+    there, as in ``cell_slice``.
 
     >>> truncate_detailed("hello world", 8)
     Truncation(text='hello...', width=8, original_width=11, truncated=True)

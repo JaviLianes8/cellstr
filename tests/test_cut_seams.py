@@ -26,12 +26,12 @@ def test_a_stray_escape_in_the_suffix_follows_the_cell_slice_rule() -> None:
     assert truncate("abcdefgh", 5, suffix="\x1b") == "abcde"
 
 
-def test_a_cut_never_fuses_across_an_emoji_zwj_seam() -> None:
+def test_a_middle_cut_keeps_a_zwj_with_its_emoji_when_the_right_part_does_not_fit() -> None:
     cut = truncate_detailed("\U0001f600\u200dabc\u231a\ufe0e", 3, "", position="middle")
     assert cut.text == "\U0001f600\u200d" and cut.width == cell_len(cut.text) == 2
 
 
-def test_a_cut_never_joins_two_lone_regional_indicators_into_a_flag() -> None:
+def test_a_middle_cut_leaves_out_a_right_cluster_wider_than_its_part() -> None:
     cut = truncate_detailed("a\U0001f1e6x\U0001f1e6\U0001f3fb", 4, "", position="middle")
     assert cut.text == "a\U0001f1e6" and cut.width == 2
     assert list(iter_graphemes(cut.text)) == ["a", "\U0001f1e6"]

@@ -137,15 +137,19 @@ sum(char_width(ch) for ch in strip_ansi(text))  # -> 6
 - With `tabsize` set, tabs advance to the next tab stop, counted from the start of the
   line, and become spaces in slices and padded output so the layout does not shift.
 - The result of slicing, truncation, padding or `expand_tabs` never holds an escape
-  sequence or a wider cluster that the text (and the suffix) did not hold, so its width is
-  the width of the pieces it keeps. A stray ESC, one that starts no complete sequence
-  (such as the ESC of an unterminated `ESC ]` or `ESC [`), is a zero-width control; it is
-  dropped when the next character in the result is printable ASCII, which could otherwise
-  extend it into a new sequence. A zero-width cluster that a cut, a tab expansion or the
-  start of a suffix puts after a new neighbour, such as VS16 or a tag character, is
-  dropped when it would glue to an emoji and widen it. Otherwise it stays and joins that
-  neighbour: a combining mark that followed a tab can end up on a space or on the letter
-  kept before the cut, at the same width.
+  sequence that the text (and the suffix) did not hold, and its width is the sum of the
+  pieces it keeps. A stray ESC, one that starts no complete sequence (such as the ESC of
+  an unterminated `ESC ]` or `ESC [`), is a zero-width control; it is dropped when the
+  next character in the result is printable ASCII, which could otherwise extend it into
+  a new sequence. A cut, a tab expansion or a suffix can also put a cluster after a new
+  neighbour that it joins. It stays only when the joined cluster measures the sum of the
+  two: a combining mark that followed a tab ends up on a space or on the letter kept
+  before the cut, at the same width, and two lone regional indicators that a middle cut
+  brings together become a flag, two cells as before. Any other one is dropped, wider or
+  narrower: VS16 or a tag character after U+2764, a skin tone modifier after an emoji, an
+  emoji after a kept ZWJ. This holds for the start of a suffix too, so
+  `truncate("👍abc", 4, "🏽")` is the thumbs up alone, two
+  cells and no suffix; `fit()` pads the missing cells back.
 - `strip_ansi` removes every escape sequence and every stray ESC, and nothing else. An
   escape sequence or a stray ESC ends the cluster before it, so removing one can join the
   clusters on either side into one cluster, and the stripped text may then measure

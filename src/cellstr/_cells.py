@@ -122,7 +122,8 @@ def expand(text: str, tabsize: int | None, ambiguous: int) -> str:
     """``expand_tabs`` for arguments that are already checked; ``None`` expands no tab.
 
     The text is rebuilt (see ``Joiner``) whenever a tab or a stray ESC is in it, so the
-    result never holds an escape sequence or a wider cluster that the text did not hold.
+    result never holds an escape sequence that the text did not hold, and its width is
+    the sum of the pieces it keeps.
     """
     if not ((tabsize is not None and "\t" in text) or has_stray(text)):
         return text
