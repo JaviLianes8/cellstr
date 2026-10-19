@@ -136,18 +136,29 @@ def center(
     return fill * left + body + fill * (pad - left)
 
 
-def splice(text: str, head: int, rstart: int, insert: str, ambiguous: int) -> str:
+def splice(
+    text: str, head: int, rstart: int, insert: str, ambiguous: int, tabsize: int | None
+) -> str:
     """Keep the clusters in ``[0, head)`` and ``[rstart, end)``, putting ``insert`` between.
 
     Every escape sequence is kept exactly once, in place, and ``insert`` goes where the
-    first dropped cluster was.
+    first dropped cluster was. With ``tabsize`` set, a tab becomes the spaces it covers
+    on either side of the cut.
     """
-    found = list(cells(text, ambiguous, None))
+    found = list(cells(text, ambiguous, tabsize))
     total = total_width(found)
     out: list[str] = []
     pending = True
     for cell in found:
         end = cell.column + cell.width
+        if tabsize is not None and cell.text == "\t" and not cell.escape:
+            left_spaces = max(0, min(end, head) - cell.column)
+            out.append(" " * left_spaces)
+            if left_spaces < cell.width and pending:
+                out.append(insert)
+                pending = False
+            out.append(" " * max(0, end - max(cell.column, rstart)))
+            continue
         left = end <= head if cell.width else cell.column < head
         right = rstart <= cell.column and end <= total
         if not (cell.escape or left) and pending:

@@ -23,11 +23,14 @@ def code_width(code: int, ambiguous: int) -> int:
 def char_width(char: str, *, ambiguous: int = 1) -> int:
     """Display cells a single code point occupies on its own: 0, 1 or 2.
 
-    U+0000, the C0 and C1 controls, DEL, nonspacing and enclosing marks (Mn, Me), format
-    characters (Cf, except SOFT HYPHEN) and Hangul medial vowels and final consonants are
-    zero. East Asian Wide and Fullwidth characters are two. East Asian Ambiguous
-    characters take ``ambiguous`` cells (1 by default, 2 for CJK terminals). Everything
-    else is one. This is Markus Kuhn's wcwidth, except that controls are 0 instead of -1.
+    Zero: U+0000, the C0 and C1 controls and DEL; nonspacing and enclosing marks (Mn,
+    Me); format characters (Cf); line and paragraph separators (Zl, Zp); default
+    ignorable code points; Hangul medial vowels and final consonants. SOFT HYPHEN, U+115F
+    HANGUL CHOSEONG FILLER and the prepended concatenation marks (such as U+0600 ARABIC
+    NUMBER SIGN) are visible and keep their width. East Asian Wide and Fullwidth
+    characters are two, East Asian Ambiguous ones take ``ambiguous`` cells (1 by default,
+    2 for CJK terminals) and everything else is one. These are Markus Kuhn's wcwidth
+    rules with controls at 0 instead of -1; GUIDE.md lists each refinement.
 
     >>> char_width("a"), char_width("\\u4f60"), char_width("\\u0301"), char_width("\\u2500")
     (1, 2, 0, 1)
@@ -58,9 +61,12 @@ def cluster_width(cluster: str, ambiguous: int) -> int:
         return code_width(code, ambiguous)
     rest = cluster[1:]
     if code & (EMOJI_BIT | EXT_PICT_BIT) and not code & MODIFIER_BIT:
-        # A variation selector only counts right after the base.
+        # A variation selector only counts right after the base. Text presentation narrows
+        # a wide emoji to one cell but leaves an ambiguous one to the ambiguous policy.
         if code & EMOJI_BIT and rest[0] in (_VS15, _VS16):
-            return 1 if rest[0] == _VS15 else 2
+            if rest[0] == _VS16:
+                return 2
+            return ambiguous if code >> WIDTH_SHIFT == AMBIGUOUS else 1
         if _emoji_sequence(rest):
             return 2
     if code & 0x0F == _RI and prop(ord(rest[0])) & 0x0F == _RI:
@@ -74,9 +80,10 @@ def grapheme_width(cluster: str, *, ambiguous: int = 1) -> int:
     ``cluster`` must be exactly one cluster, such as an item from ``iter_graphemes``.
     Emoji sequences draw as a single glyph: an emoji followed by VS16 (U+FE0F), a skin
     tone modifier, a ZWJ sequence, a tag sequence or a pair of regional indicators (a
-    flag) is two cells, and an emoji followed by VS15 (U+FE0E) is one. Any other cluster
-    is the sum of its code points, which keeps combining marks at zero and conjoining
-    Hangul jamo at the width of the syllable.
+    flag) is two cells, and an emoji followed by VS15 (U+FE0E) is one (``ambiguous``
+    when the emoji is East Asian Ambiguous). Any other cluster is the sum of its code
+    points, which keeps combining marks at zero and conjoining Hangul jamo at the width
+    of the syllable.
 
     >>> grapheme_width("\\U0001f468\\u200d\\U0001f469\\u200d\\U0001f467")
     2

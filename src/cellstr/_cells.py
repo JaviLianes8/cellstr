@@ -86,9 +86,11 @@ def cell_len(text: str, *, ambiguous: int = 1, tabsize: int | None = None) -> in
     >>> cell_len("a\\tb", tabsize=8)
     9
     """
-    text = check_text(text)
-    ambiguous = check_ambiguous(ambiguous)
-    tabsize = check_tabsize(tabsize)
+    return measure(check_text(text), check_ambiguous(ambiguous), check_tabsize(tabsize))
+
+
+def measure(text: str, ambiguous: int, tabsize: int | None) -> int:
+    """``cell_len`` for arguments that are already checked."""
     if tabsize is None or "\t" not in text:
         return text_width(text, ambiguous)
     return sum(cell.width for cell in cells(text, ambiguous, tabsize))

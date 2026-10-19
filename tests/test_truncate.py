@@ -60,6 +60,20 @@ def test_truncate_with_tabs_and_ambiguous_policy() -> None:
     assert truncate("\u03b1\u03b2\u03b3", 4, "~", ambiguous=2) == "\u03b1~"
 
 
+def test_truncate_turns_tabs_into_the_spaces_kept_at_each_cut() -> None:
+    # "ab\tcdef\tgh" with stops every 4 cells draws as "ab  cdef    gh" (14 cells).
+    text = "ab\tcdef\tgh"
+    assert truncate(text, 8, "~", tabsize=4, position="middle") == "ab  ~ gh"
+    assert truncate(text, 8, "~", tabsize=4, position="start") == "~f    gh"
+    assert truncate(text, 8, "~", tabsize=4) == "ab  cde~"
+    assert truncate_detailed(text, 20, tabsize=4) == Truncation("ab  cdef    gh", 14, 14, False)
+
+
+def test_truncate_work_does_not_grow_with_the_tab_size() -> None:
+    result = truncate_detailed("a\tb" * 1000, 10, tabsize=10**9)
+    assert result == Truncation("a      ...", 10, 1000 * 10**9 + 1, True)
+
+
 def test_truncate_detailed_reports_the_outcome() -> None:
     assert truncate_detailed("hello world", 8) == Truncation("hello...", 8, 11, True)
     assert truncate_detailed("hi", 8) == Truncation("hi", 2, 2, False)

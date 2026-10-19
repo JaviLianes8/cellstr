@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Literal, NamedTuple
 
 from ._args import check_ambiguous, check_choice, check_tabsize, check_text, check_width
-from ._cells import expand
+from ._cells import expand, measure
 from ._ops import cell_slice, center, check_fill, ljust, rjust, splice
 from ._width import text_width
 
@@ -19,7 +19,8 @@ class Truncation(NamedTuple):
     """The outcome of ``truncate_detailed``.
 
     ``text`` is the result, ``width`` the cells it occupies, ``original_width`` the cells
-    the input occupied (after tab expansion) and ``truncated`` whether anything was cut.
+    the input occupied (tabs at their stops when ``tabsize`` is set) and ``truncated``
+    whether anything was cut.
 
     >>> Truncation("hi", 2, 2, False).truncated
     False
@@ -52,7 +53,8 @@ def truncate_detailed(
     clusters are never split, so a wide character at the cut may leave the result one
     cell short. Every escape sequence in the text is kept once, in place; the suffix is
     inserted as given (it may hold escape sequences) and must not contain tabs or line
-    breaks. ``width`` is a non-negative integer.
+    breaks. ``width`` is a non-negative integer. With ``tabsize`` set, every tab in the
+    result becomes the spaces it covers there, as in ``cell_slice``.
 
     >>> truncate_detailed("hello world", 8)
     Truncation(text='hello...', width=8, original_width=11, truncated=True)
@@ -65,22 +67,23 @@ def truncate_detailed(
     where = check_choice(position, "position", _POSITIONS)
     policy = check_ambiguous(ambiguous)
     tabs = check_tabsize(tabsize)
-    if tabs is not None:
-        text = expand(text, tabs, policy)
-    total = text_width(text, policy)
+    # Tabs are measured at their stops and turned into spaces only inside the kept parts,
+    # so the work stays proportional to the text and the result, whatever the tab size.
+    total = measure(text, policy, tabs)
     if total <= limit:
-        return Truncation(text, total, total, False)
+        body = text if tabs is None else expand(text, tabs, policy)
+        return Truncation(body, total, total, False)
     room = limit - text_width(suffix, policy)
     if room < 0:  # no room for the suffix: hard cut, and a middle cut becomes an end cut
         suffix, room = "", limit
         where = "start" if where == "start" else "end"
     if where == "end":
-        cut = cell_slice(text, 0, room, ambiguous=policy) + suffix
+        cut = cell_slice(text, 0, room, ambiguous=policy, tabsize=tabs) + suffix
     elif where == "start":
-        cut = suffix + cell_slice(text, total - room, ambiguous=policy)
+        cut = suffix + cell_slice(text, total - room, ambiguous=policy, tabsize=tabs)
     else:
         head = (room + 1) // 2
-        cut = splice(text, head, total - (room - head), suffix, policy)
+        cut = splice(text, head, total - (room - head), suffix, policy, tabs)
     return Truncation(cut, text_width(cut, policy), total, True)
 
 
