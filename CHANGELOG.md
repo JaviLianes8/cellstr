@@ -41,6 +41,8 @@ Versioning. Every change against 0.2.1 is listed below.
   when standard input is not UTF-8 (the message gives the byte and its offset), the
   output is too large to build or it cannot be written. Usage messages are cut at 200
   characters.
+- `scripts/check.ps1` and `scripts/release.ps1` stop at the first tool that fails, and
+  the release script refuses only a version that PyPI already has.
 
 ### Added
 
@@ -48,7 +50,8 @@ Versioning. Every change against 0.2.1 is listed below.
 - Cross-checks of every code point against the real output of glibc 2.43 `wcwidth()`
   (`tests/fixtures/glibc-wcwidth.txt`, captured by `scripts/capture_glibc.py`) and
   against the `wcwidth` package 0.9.2, and tests over every line of the official
-  emoji-test.txt and emoji-variation-sequences.txt. The manifest pins four more Unicode
+  emoji-test.txt and emoji-variation-sequences.txt, and a test that every operation stays
+  linear on thirteen hostile input shapes. The manifest pins four more Unicode
   18.0.0 files: DerivedAge.txt, PropList.txt and the two emoji files.
 - Python 3.10 to 3.14 classifiers, `Development Status :: 5 - Production/Stable`.
 
