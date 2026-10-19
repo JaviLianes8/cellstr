@@ -64,3 +64,24 @@ def test_segments_rejoin_to_the_original() -> None:
     text = f"{RED}x\u4f60{RESET}y\x1b]8;;u\x07z"
     assert "".join(p.text for p in segments(text)) == text
     assert segments("") == []
+
+
+@pytest.mark.parametrize("escape", ["\x1b[3~", "\x1b[200~", "\x1b[201~", "\x1b[15;5~"])
+def test_csi_sequences_ending_in_a_tilde(escape: str) -> None:
+    assert cell_len(escape) == 0
+    assert strip_ansi(f"x{escape}y") == "xy"
+
+
+def test_bracketed_paste_markers_are_removed() -> None:
+    assert strip_ansi("x\x1b[200~pasted\x1b[201~y") == "xpastedy"
+
+
+def test_charset_designation_with_several_intermediates() -> None:
+    assert cell_len("\x1b$(Bab") == 2
+    assert strip_ansi("\x1b$(Bab") == "ab"
+
+
+def test_eight_bit_c1_introducers_are_not_escape_sequences() -> None:
+    # Documented: only the 7-bit ESC forms are recognised; U+009B is a zero-width control.
+    assert cell_len("ab\x9b31mcd") == 7
+    assert strip_ansi("ab\x9b31mcd") == "ab\x9b31mcd"

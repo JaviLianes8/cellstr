@@ -1,21 +1,20 @@
 """Generate the embedded Unicode property tables from the fetched UCD files.
 
-Usage::
+Usage: ``python scripts/gen_ucd_tables.py`` rewrites src/cellstr/_ucd_*.py; with ``--check``
+it exits 1 if they are stale. Inputs live in ``data/ucd/``, which git ignores:
+``python scripts/fetch_upstream.py`` fetches them as pinned in ``data/ucd/MANIFEST.json``.
+The output is a run-length list over U+0000..U+10FFFF of packed codes: Grapheme_Cluster_Break
+in bits 0-3, Extended_Pictographic in bit 4, Indic_Conjunct_Break in bits 5-6, Emoji in bit
+7, Emoji_Modifier in bit 8, the width class (0 zero, 1 narrow, 2 wide, 3 East Asian
+Ambiguous) in bits 9-10, and in bit 11 whether emoji-variation-sequences.txt lists the code
+point followed by VS15 (a text presentation sequence).
 
-    python scripts/gen_ucd_tables.py            # rewrite src/cellstr/_ucd_*.py
-    python scripts/gen_ucd_tables.py --check    # exit 1 if the files are stale
-
-Inputs live in ``data/ucd/``, which git ignores: ``python scripts/fetch_upstream.py``
-fetches them as pinned in ``data/ucd/MANIFEST.json`` (URL, Unicode version, sha256).
-The output is a run-length list covering every code point from U+0000 to U+10FFFF. Each
-run stores one packed code: Grapheme_Cluster_Break in bits 0-3, Extended_Pictographic in
-bit 4, Indic_Conjunct_Break in bits 5-6, Emoji in bit 7, Emoji_Modifier in bit 8 and the
-width class (0 zero, 1 narrow, 2 wide, 3 East Asian Ambiguous) in bits 9-10.
-
-The width class follows Markus Kuhn's wcwidth rules applied to this Unicode version:
-U+0000, controls (Cc), Mn, Me and Cf are zero except SOFT HYPHEN; Hangul medial vowels
-and final consonants (U+1160..U+11FF and U+D7B0..U+D7FF) are zero; East_Asian_Width W
-and F are wide; A is ambiguous; everything else is narrow.
+Width classes follow Markus Kuhn's wcwidth rules applied to this Unicode version, with the
+refinements GUIDE.md lists: zero for General_Category Cc, Mn, Me, Cf, Zl and Zp, for
+Default_Ignorable_Code_Point and for the Hangul medial vowels and final consonants
+(U+1160..U+11FF, U+D7B0..U+D7FF); SOFT HYPHEN, U+115F HANGUL CHOSEONG FILLER and the
+Prepended_Concatenation_Mark characters keep their East_Asian_Width class; otherwise W and F
+are wide, A is ambiguous and everything else is narrow.
 """
 
 from __future__ import annotations
@@ -31,21 +30,17 @@ OUT_DIR = ROOT / "src" / "cellstr"
 _GCB_HEAD = ("Other", "CR", "LF", "Control", "Extend", "ZWJ", "Regional_Indicator")
 GCB_NAMES = (*_GCB_HEAD, "Prepend", "SpacingMark", "L", "V", "T", "LV", "LVT")
 INCB_NAMES = ("None", "Linker", "Consonant", "Extend")
-EXT_PICT_BIT = 1 << 4
-INCB_SHIFT = 5
-EMOJI_BIT = 1 << 7
-MODIFIER_BIT = 1 << 8
-WIDTH_SHIFT = 9
-ZERO, NARROW, WIDE, AMBIGUOUS = 0, 1, 2, 3
+EXT_PICT_BIT, INCB_SHIFT, EMOJI_BIT, MODIFIER_BIT, WIDTH_SHIFT = 1 << 4, 5, 1 << 7, 1 << 8, 9
+TEXT_VS_BIT, NARROW, WIDE, AMBIGUOUS = 1 << 11, 1, 2, 3
 MAX_CP = 0x10FFFF
 # UAX #11: unassigned code points in these ranges default to W, every other one to N.
 _EAW_BMP = ((0x3400, 0x4DBF), (0x4E00, 0x9FFF), (0xF900, 0xFAFF))
 EAW_WIDE_DEFAULTS = (*_EAW_BMP, (0x20000, 0x2FFFD), (0x30000, 0x3FFFD))
-ZERO_CATEGORIES = frozenset({"Cc", "Mn", "Me", "Cf"})
+ZERO_CATEGORIES = frozenset({"Cc", "Mn", "Me", "Cf", "Zl", "Zp"})
 HANGUL_COMBINING = ((0x1160, 0x11FF), (0xD7B0, 0xD7FF))
-SOFT_HYPHEN = 0x00AD
-LINE_WIDTH = 88
-LINES_PER_PART = 180
+# Zero by the rules above, yet visible: they keep their East_Asian_Width class.
+VISIBLE = (0x00AD, 0x115F)
+LINE_WIDTH, LINES_PER_PART = 88, 180
 DIGITS = "0123456789abcdefghijklmnopqrstuvwxyz"
 
 _LINE = re.compile(r"^([0-9A-F]{4,6})(?:\.\.([0-9A-F]{4,6}))?\s*;\s*([^#]+?)\s*(?:#|$)")
@@ -58,8 +53,7 @@ def _ranges(path: Path) -> list[tuple[int, int, str]]:
         match = _LINE.match(line)
         if match:
             first = int(match.group(1), 16)
-            last = int(match.group(2) or match.group(1), 16)
-            found.append((first, last, match.group(3)))
+            found.append((first, int(match.group(2) or match.group(1), 16), match.group(3)))
     return found
 
 
@@ -79,15 +73,20 @@ def width_classes(ucd_dir: Path = UCD_DIR) -> bytearray:
         eaw[first : last + 1] = ["W"] * (last - first + 1)
     for first, last, value in _ranges(ucd_dir / "EastAsianWidth.txt"):
         eaw[first : last + 1] = [value] * (last - first + 1)
-    classes = bytearray(
-        WIDE if value in ("W", "F") else AMBIGUOUS if value == "A" else NARROW for value in eaw
-    )
-    for first, last, value in _ranges(ucd_dir / "DerivedGeneralCategory.txt"):
-        if value in ZERO_CATEGORIES:
-            classes[first : last + 1] = bytes(last - first + 1)
-    for first, last in HANGUL_COMBINING:
+    eaw_class = {"W": WIDE, "F": WIDE, "A": AMBIGUOUS}
+    classes = bytearray(eaw_class.get(value, NARROW) for value in eaw)
+    gc = _ranges(ucd_dir / "DerivedGeneralCategory.txt")
+    zero = [(a, b) for a, b, v in gc if v in ZERO_CATEGORIES]
+    core = _ranges(ucd_dir / "DerivedCoreProperties.txt")
+    zero += [(a, b) for a, b, v in core if v == "Default_Ignorable_Code_Point"]
+    for first, last in [*zero, *HANGUL_COMBINING]:
         classes[first : last + 1] = bytes(last - first + 1)
-    classes[SOFT_HYPHEN] = AMBIGUOUS if eaw[SOFT_HYPHEN] == "A" else NARROW
+    props = _ranges(ucd_dir / "PropList.txt")
+    visible = [(cp, cp) for cp in VISIBLE]
+    visible += [(a, b) for a, b, v in props if v == "Prepended_Concatenation_Mark"]
+    for first, last in visible:
+        for cp in range(first, last + 1):
+            classes[cp] = eaw_class.get(eaw[cp], NARROW)
     return classes
 
 
@@ -113,6 +112,9 @@ def property_codes(ucd_dir: Path = UCD_DIR) -> list[int]:
             incb = INCB_NAMES.index(parts[1]) << INCB_SHIFT
             for cp in range(first, last + 1):
                 codes[cp] |= incb
+    sequences = (ucd_dir / "emoji-variation-sequences.txt").read_text(encoding="utf-8")
+    for base in re.findall(r"^([0-9A-F]{4,6}) FE0E\b", sequences, re.MULTILINE):
+        codes[int(base, 16)] |= TEXT_VS_BIT
     return codes
 
 
@@ -144,9 +146,7 @@ def _wrap(tokens: list[str]) -> list[str]:
             lines.append(current)
             current = ""
         current += token + " "
-    if current:
-        lines.append(current)
-    return lines
+    return [*lines, current] if current else lines
 
 
 def render(ucd_dir: Path = UCD_DIR) -> dict[str, str]:
@@ -155,14 +155,11 @@ def render(ucd_dir: Path = UCD_DIR) -> dict[str, str]:
     parts = [lines[i : i + LINES_PER_PART] for i in range(0, len(lines), LINES_PER_PART)]
     note = "# Generated by scripts/gen_ucd_tables.py from data/ucd/. Do not edit.\n"
     files: dict[str, str] = {}
-    names: list[str] = []
-    for number, chunk in enumerate(parts, start=1):
-        name = f"_ucd_part{number}"
-        names.append(name)
+    names = [f"_ucd_part{number}" for number in range(1, len(parts) + 1)]
+    for number, (name, chunk) in enumerate(zip(names, parts, strict=True), start=1):
         body = "".join(f'    "{line}"\n' for line in chunk)
-        files[f"{name}.py"] = (
-            f'"""Run-length property data, part {number}."""\n\n{note}\nRUNS = (\n{body})\n'
-        )
+        doc = f'"""Run-length property data, part {number}."""\n\n'
+        files[f"{name}.py"] = f"{doc}{note}\nRUNS = (\n{body})\n"
     imports = "".join(f"from .{name} import RUNS as _R{i}\n" for i, name in enumerate(names))
     joined = " + ".join(f"_R{i}" for i in range(len(names)))
     gcb = "".join(f'    "{name}",\n' for name in GCB_NAMES)
@@ -173,13 +170,14 @@ def render(ucd_dir: Path = UCD_DIR) -> dict[str, str]:
         f"GCB_NAMES = (\n{gcb})\n"
         f"EXT_PICT_BIT = {EXT_PICT_BIT}\nINCB_SHIFT = {INCB_SHIFT}\n"
         f"EMOJI_BIT = {EMOJI_BIT}\nMODIFIER_BIT = {MODIFIER_BIT}\nWIDTH_SHIFT = {WIDTH_SHIFT}\n"
+        f"TEXT_VS_BIT = {TEXT_VS_BIT}\n"
         f"RUNS = {joined}\n"
     )
     return files
 
 
 def main(argv: list[str]) -> int:
-    if not (UCD_DIR / "GraphemeBreakProperty.txt").is_file():
+    if not (UCD_DIR / "PropList.txt").is_file():
         print("data/ucd/ is not fetched; run python scripts/fetch_upstream.py", file=sys.stderr)
         return 0 if "--check" in argv else 1
     files = render()

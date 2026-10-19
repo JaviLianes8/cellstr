@@ -1,140 +1,151 @@
-"""Cross-check against the ``wcwidth`` package, used here only as a test oracle.
+"""Cross-check against the ``wcwidth`` package 0.9.2, used here only as a test oracle.
 
-Every code point is compared. Each disagreement must be explained by one of the
-documented reasons (GUIDE.md, "Differences from the wcwidth package"):
+wcwidth 0.9.2 (released 2026-10-05) is an independent implementation built on the same
+Unicode 18.0.0 data, with its own published rules
+(https://wcwidth.readthedocs.io/en/latest/specs.html, read on 2026-10-18). Every
+disagreement must belong to one of the policy differences documented in GUIDE.md
+("Differences from other measurers"); the counts are pinned so a new one fails:
 
-* data: the oracle's tables are Unicode 15.1.0 and ours are newer, so the code point is
-  new, or its East_Asian_Width or General_Category changed. The 15.1.0 values come from
-  data/ucd/EastAsianWidth-15.1.0.txt, which is not committed: scripts/fetch_upstream.py
-  fetches it from https://www.unicode.org/Public/15.1.0/ucd/EastAsianWidth.txt as pinned
-  in data/ucd/MANIFEST.json (its comments carry the General_Category of every assigned
-  code point). These tests skip until the Unicode data is fetched.
-* policy: spacing marks (Mc) are 1 cell here, as in Kuhn's wcwidth and glibc, and 0 in
-  the oracle; SOFT HYPHEN, LINE SEPARATOR and PARAGRAPH SEPARATOR are 1 (Kuhn); a lone
-  emoji skin tone modifier is 2 (it is East Asian Wide) where the oracle says 0.
+* spacing marks (Mc): 1 cell here (2 when East Asian Wide), as in Kuhn's rules and glibc;
+  0 in wcwidth's single character function, and a cluster holding one is capped at 2 there.
+* a lone regional indicator: 1 here (East_Asian_Width N), 2 in wcwidth.
+* an emoji sequence whose first code point is a one-cell emoji not followed by VS16, with a
+  skin tone or a ZWJ: 2 here (an emoji sequence draws as one wide glyph), 1 in wcwidth.
 """
 
 from __future__ import annotations
 
-import hashlib
-import re
+import importlib.metadata
+import random
 from collections import Counter
-from pathlib import Path
 
 import pytest
-from conftest import MANIFEST, UCD, needs_ucd
+from conftest import UCD, needs_ucd
 
-from cellstr import cell_len, char_width
+from cellstr import cell_len, char_width, grapheme_width, iter_graphemes
 
 wcwidth = pytest.importorskip("wcwidth")
-
-pytestmark = needs_ucd
-OLD = UCD / "EastAsianWidth-15.1.0.txt"
-_ROW = re.compile(r"^([0-9A-F]+)(?:\.\.([0-9A-F]+))?\s*;\s*(\w+)\s*#\s*(\w\w|L&)")
-
-
-def _table(path: Path, with_gc: bool) -> dict[int, tuple[str, str]]:
-    found: dict[int, tuple[str, str]] = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
-        match = _ROW.match(line) if with_gc else None
-        if match:
-            low, high = int(match.group(1), 16), int(match.group(2) or match.group(1), 16)
-            for cp in range(low, high + 1):
-                found[cp] = (match.group(3), match.group(4))
-    return found
+pytestmark = [
+    needs_ucd,
+    pytest.mark.skipif(
+        importlib.metadata.version("wcwidth") != "0.9.2",
+        reason="the documented differences are pinned to wcwidth 0.9.2",
+    ),
+]
+REGIONAL = range(0x1F1E6, 0x1F200)
 
 
-def _categories() -> dict[int, str]:
-    out: dict[int, str] = {}
-    for line in (UCD / "DerivedGeneralCategory.txt").read_text(encoding="utf-8").splitlines():
-        match = re.match(r"^([0-9A-F]+)(?:\.\.([0-9A-F]+))?\s*;\s*(\w+)", line)
-        if match:
-            low, high = int(match.group(1), 16), int(match.group(2) or match.group(1), 16)
-            for cp in range(low, high + 1):
-                out[cp] = match.group(3)
-    return out
+def _spacing_marks() -> set[int]:
+    marks: set[int] = set()
+    for raw in (UCD / "DerivedGeneralCategory.txt").read_text(encoding="utf-8").splitlines():
+        data = raw.split("#", 1)[0]
+        if data.split(";")[-1].strip() == "Mc":
+            low, _, high = data.split(";")[0].strip().partition("..")
+            marks.update(range(int(low, 16), int(high or low, 16) + 1))
+    return marks
 
 
-def _reason(
-    cp: int,
-    ours: int,
-    theirs: int,
-    old: dict[int, tuple[str, str]],
-    new: dict[int, tuple[str, str]],
-    gc: dict[int, str],
-) -> str | None:
-    if cp not in old:
-        return "data: new since 15.1"
-    if new.get(cp, ("N", ""))[0] != old[cp][0]:
-        return "data: East_Asian_Width changed"
-    if gc.get(cp, "Cn") != old[cp][1] and old[cp][1] != "L&":
-        return "data: General_Category changed"
-    if gc.get(cp) == "Mc" and theirs == 0:
-        return "policy: spacing mark"
-    if cp in (0x00AD, 0x2028, 0x2029) and (ours, theirs) == (1, 0):
-        return "policy: Kuhn width 1"
-    if 0x1F3FB <= cp <= 0x1F3FF and (ours, theirs) == (2, 0):
-        return "policy: lone skin tone"
-    return None
-
-
-def test_the_15_1_fixture_is_the_file_as_fetched() -> None:
-    digest = hashlib.sha256(OLD.read_bytes()).hexdigest()
-    assert digest == MANIFEST[OLD.name]["sha256"]
-
-
-def test_every_code_point_agrees_or_has_a_documented_reason() -> None:
-    if wcwidth.list_versions()[-1] != "15.1.0":
-        pytest.skip("the documented differences are pinned to an oracle built on Unicode 15.1.0")
-    old = _table(OLD, True)
-    new = _table(UCD / "EastAsianWidth.txt", True)
-    gc = _categories()
+@pytest.mark.parametrize("ambiguous", [1, 2])
+def test_every_code_point_agrees_or_has_a_documented_reason(ambiguous: int) -> None:
+    marks = _spacing_marks()
     reasons: Counter[str] = Counter()
-    unexplained = []
     for cp in range(0x110000):
-        ours = char_width(chr(cp))
-        theirs = max(0, wcwidth.wcwidth(chr(cp), "latest"))
+        ours = char_width(chr(cp), ambiguous=ambiguous)
+        theirs = wcwidth.wcwidth(chr(cp), ambiguous_width=ambiguous)
         if ours == theirs:
             reasons["agree"] += 1
-            continue
-        reason = _reason(cp, ours, theirs, old, new, gc)
-        reasons[reason or "unexplained"] += 1
-        if reason is None:
-            unexplained.append(hex(cp))
-    assert unexplained == []
-    # The exact figures published in GUIDE.md, "Differences from the wcwidth package".
-    assert dict(reasons) == {
-        "agree": 1_112_200,
-        "data: new since 15.1": 1263,
-        "data: East_Asian_Width changed": 188,
-        "data: General_Category changed": 1,
-        "policy: spacing mark": 452,
-        "policy: Kuhn width 1": 3,
-        "policy: lone skin tone": 5,
+        elif theirs == -1 and ours == 0 and (cp < 0x20 or 0x7F <= cp < 0xA0):
+            reasons["control: 0 here, -1 (not printable) in wcwidth"] += 1
+        elif cp in marks and theirs == 0:
+            reasons["spacing mark"] += 1
+        elif cp in REGIONAL and (ours, theirs) == (1, 2):
+            reasons["lone regional indicator"] += 1
+        else:
+            reasons[f"unexplained {cp:04X}"] += 1
+    assert reasons == {
+        "agree": 1_113_545,
+        "control: 0 here, -1 (not printable) in wcwidth": 64,
+        "spacing mark": 477,
+        "lone regional indicator": 26,
     }
 
 
-SEQUENCES = {
-    "family ZWJ sequence": ("\U0001f468\u200d\U0001f469\u200d\U0001f467", 2),
-    "VS16 emoji presentation": ("\u2764\ufe0f", 2),
-    "text default emoji": ("\u2764", 1),
-    "flag": ("\U0001f1ea\U0001f1f8", 2),
-    "skin tone sequence": ("\U0001f44d\U0001f3fd", 2),
-    "keycap": ("1\ufe0f\u20e3", 2),
-    "combining accent": ("e\u0301", 1),
-    "conjoining Hangul": ("\u1100\u1161\u11a8", 2),
-    "CJK and ASCII": ("ab\u4f60\u597d", 6),
-}
+@pytest.mark.parametrize("ambiguous", [1, 2])
+def test_every_emoji_with_a_variation_selector_agrees(ambiguous: int) -> None:
+    emoji: set[int] = set()
+    for raw in (UCD / "emoji-data.txt").read_text(encoding="utf-8").splitlines():
+        data = raw.split("#", 1)[0]
+        if ";" in data and data.split(";")[1].strip() == "Emoji":
+            low, _, high = data.split(";")[0].strip().partition("..")
+            emoji.update(range(int(low, 16), int(high or low, 16) + 1))
+    outcome: Counter[str] = Counter()
+    for cp in emoji:
+        for selector in ("\ufe0e", "\ufe0f"):
+            text = chr(cp) + selector
+            ours = grapheme_width(text, ambiguous=ambiguous)
+            theirs = wcwidth.width(text, ambiguous_width=ambiguous)
+            if ours == theirs:
+                outcome["agree"] += 1
+            else:
+                assert cp in REGIONAL and selector == "\ufe0e" and (ours, theirs) == (1, 2)
+                outcome["lone regional indicator with VS15"] += 1
+    assert outcome == {"agree": 2868, "lone regional indicator with VS15": 26}
 
 
-@pytest.mark.parametrize("name", list(SEQUENCES))
-def test_strings_agree_with_wcswidth(name: str) -> None:
-    text, width = SEQUENCES[name]
-    assert cell_len(text) == width == wcwidth.wcswidth(text)
+def test_grapheme_clusters_are_the_same_on_random_text() -> None:
+    rng = random.Random(29)
+    pool = [cp for cp in range(0x110000) if not 0xD800 <= cp <= 0xDFFF]
+    for _ in range(20_000):
+        text = "".join(chr(rng.choice(pool)) for _ in range(rng.randrange(1, 9)))
+        assert list(iter_graphemes(text)) == list(wcwidth.iter_graphemes(text)), text
+
+
+def test_cluster_widths_differ_only_for_the_documented_reasons() -> None:
+    rng = random.Random(31)
+    marks = _spacing_marks()
+    pool = [cp for cp in range(0x20, 0x110000) if not 0xD800 <= cp <= 0xDFFF]
+    checked = 0
+    for _ in range(40_000):
+        text = "".join(chr(rng.choice(pool)) for _ in range(rng.randrange(1, 4)))
+        for cluster in iter_graphemes(text):
+            if any(ord(ch) in marks for ch in cluster) or cluster in map(chr, REGIONAL):
+                continue
+            checked += 1
+            assert grapheme_width(cluster) == wcwidth.width(cluster), cluster
+    assert checked > 50_000
+
+
+def test_the_emoji_test_file_differs_only_for_text_default_bases() -> None:
+    differences: Counter[str] = Counter()
+    for raw in (UCD / "emoji-test.txt").read_text(encoding="utf-8").splitlines():
+        data = raw.split("#", 1)[0]
+        if ";" not in data:
+            continue
+        points, status = (part.strip() for part in data.split(";"))
+        cps = [int(token, 16) for token in points.split()]
+        text = "".join(map(chr, cps))
+        if cell_len(text) == wcwidth.width(text):
+            continue
+        assert char_width(text[0]) == 1 and len(cps) > 1 and cps[1] != 0xFE0F, points
+        assert (cell_len(text), wcwidth.width(text)) == (2, 1), points
+        differences[status] += 1
+    assert differences == {"fully-qualified": 45, "minimally-qualified": 40, "unqualified": 14}
 
 
 def test_documented_string_differences() -> None:
-    # VS15 asks for text presentation: one cell here, the oracle keeps two.
-    assert (cell_len("\u231a\ufe0e"), wcwidth.wcswidth("\u231a\ufe0e")) == (1, 2)
-    # A Devanagari spacing vowel sign takes a cell here, as in glibc; the oracle says 0.
-    assert (cell_len("\u0915\u093f"), wcwidth.wcswidth("\u0915\u093f")) == (2, 1)
+    hand = "\U0001f590\U0001f3fb"  # a text-default emoji with a skin tone, fully qualified
+    assert (cell_len(hand), wcwidth.width(hand)) == (2, 1)
+    fire_heart = "❤‍\U0001f525"  # unqualified ZWJ sequence (no VS16)
+    assert (cell_len(fire_heart), wcwidth.width(fire_heart)) == (2, 1)
+    assert (cell_len("\U0001f1ea"), wcwidth.width("\U0001f1ea")) == (1, 2)
+    kssi = "क्षि"  # a conjunct with a spacing vowel sign
+    assert (cell_len(kssi), wcwidth.width(kssi)) == (3, 2)
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["family \U0001f468‍\U0001f469‍\U0001f467", "❤️", "é", "你好"],
+)
+def test_strings_without_documented_differences_agree(text: str) -> None:
+    assert cell_len(text) == wcwidth.width(text)
+    assert cell_len(text, ambiguous=2) == wcwidth.width(text, ambiguous_width=2)

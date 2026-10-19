@@ -6,7 +6,83 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-## [0.2.1]
+## [1.0.0] - 2026-10-19
+
+First release on PyPI. The public API is stable from this release on: the nineteen names
+in `cellstr.__all__`, their signatures, defaults, results and error types follow Semantic
+Versioning. Every change against 0.2.1 is listed below.
+
+### Changed
+
+- Every function checks its arguments when it is called, `iter_graphemes` and
+  `iter_cells` included (they used to fail only when iterated, or not at all:
+  `iter_graphemes(None)` yielded nothing). A wrong type raises `TypeError` naming the
+  argument, where 0.2.1 leaked `AttributeError` or an unrelated `TypeError`; a `float` or
+  a `bool` is no longer accepted as a width, column, `ambiguous` or `tabsize`
+  (`truncate("abcdef", 2.5)` returned `"ab"`).
+- Error messages quote at most 40 characters of any argument. A huge `fillchar`,
+  `position` or `align` produced a message as long as the argument, and a width past the
+  interpreter's integer string limit raised that limit's error instead of cellstr's.
+- Results are always exact `str`; a `str` subclass came back as itself when unchanged.
+- Widths: LINE SEPARATOR and PARAGRAPH SEPARATOR (U+2028, U+2029) and every
+  Default_Ignorable_Code_Point, assigned or reserved, are zero (U+3164 HANGUL FILLER was
+  2, U+FFA0 1, reserved ones 1). The Prepended_Concatenation_Mark format characters such
+  as U+0600 ARABIC NUMBER SIGN are visible and take their East_Asian_Width (they were 0).
+  U+115F HANGUL CHOSEONG FILLER stays 2.
+- An East Asian Ambiguous emoji followed by VS15 (text presentation), such as ™︎, takes
+  the `ambiguous` width instead of always one cell.
+- VS15 narrows an emoji only in a text presentation sequence that
+  emoji-variation-sequences.txt lists (UTS #51 ED-8a); after any other emoji it changes
+  nothing, as Unicode says of a variation selector it does not sanction. U+1F600
+  followed by VS15 is two cells, as in the `wcwidth` package 0.9.2 (it was one).
+- `strip_ansi` also removes a stray ESC, one that starts no complete escape sequence, so
+  its result holds no ESC and stripping it again changes nothing. In 0.2.1
+  `strip_ansi("\x1b\x1b[0m[31mred")` returned the live sequence `"\x1b[31mred"`.
+- An unterminated `ESC P` or `ESC X` string is read like an unterminated `ESC ]`, `ESC ^`
+  or `ESC _`: only its ESC is a zero-width control and the letter after it counts as
+  text (it was hidden as a two-character escape).
+- `cell_slice`, `truncate`, `truncate_detailed`, `fit`, `ljust`, `rjust`, `center` and
+  `expand_tabs` never return an escape sequence or a wider cluster that the input did not
+  hold. A stray ESC is dropped where the result ends with it or goes on with printable
+  ASCII, and a zero-width cluster that a cut would glue to an emoji, widening it, is
+  dropped. In 0.2.1 `truncate("\x1b你abc", 2, "~")` returned `"\x1b~"` (an escape
+  sequence, zero cells), `expand_tabs("\x1b[\t~", 4)` a CSI sequence, and a middle cut
+  of `"❤\xad\U000e0067"` to one cell a two-cell emoji.
+- A middle cut gives a cell that one part cannot use, because of a wide cluster at its
+  cut, to the other part: `truncate("你你你你你", 9, position="middle")` is
+  `"你你...你"` (nine cells), where 0.2.1 returned `"你...你"` (seven).
+- `truncate`, `truncate_detailed` and `fit` with `tabsize` measure tabs at their stops
+  and turn into spaces only the tabs that are kept, so the work no longer grows with the
+  tab size.
+- `Cell` and `Truncation` report `cellstr` as their module, so pickles name the public
+  package. The stray `cellstr.annotations` attribute is gone.
+- The `cellstr` command exits with 2 for a bad command line (it was 1), including a
+  `--fill` too wide for `--ambiguous 2` and `slice` with STOP before START, and with 1
+  when standard input is not UTF-8 (the message gives the byte and its offset), the
+  output is too large to build or it cannot be written. Usage messages are cut at 200
+  characters.
+- `scripts/check.ps1` and `scripts/release.ps1` stop at the first tool that fails, and
+  the release script refuses only a version that PyPI already has.
+
+### Added
+
+- GUIDE sections "Errors" and "Differences from other measurers".
+- Documentation of the 7-bit scope of escape recognition (the 8-bit C1 introducers
+  are zero-width controls) and of `OverflowError` and `MemoryError` for a result too
+  large to build.
+- Cross-checks of every code point against the real output of glibc 2.43 `wcwidth()`
+  (`tests/fixtures/glibc-wcwidth.txt`, captured by `scripts/capture_glibc.py`) and
+  against the `wcwidth` package 0.9.2, and tests over every line of the official
+  emoji-test.txt and emoji-variation-sequences.txt, and a test that every operation stays
+  linear on thirteen hostile input shapes. The manifest pins four more Unicode
+  18.0.0 files: DerivedAge.txt, PropList.txt and the two emoji files.
+- Python 3.10 to 3.14 classifiers, `Development Status :: 5 - Production/Stable`.
+
+### Removed
+
+- The `wcwidth` 0.2.13 oracle and the pinned Unicode 15.1.0 EastAsianWidth.txt it needed.
+
+## [0.2.1] - 2026-10-13
 
 ### Changed
 
@@ -17,7 +93,7 @@ All notable changes to this project are documented here. The format follows
   generated tables stay in the package and the Unicode licence notice ships in the wheel.
 - The sdist ships only the sources, tests, scripts and docs.
 
-## [0.2.0]
+## [0.2.0] - 2026-10-12
 
 ### Added
 
@@ -46,7 +122,7 @@ All notable changes to this project are documented here. The format follows
 - `cell_slice` never splits a grapheme cluster, so accents stay on their letter.
 - `ljust`, `rjust` and `center` accept any one-cell grapheme cluster as the fill.
 
-## [0.1.0]
+## [0.1.0] - 2026-10-11
 
 - First release: `cell_len`, `char_width`, `cell_slice`, `ljust`, `rjust`,
   `center`, `truncate` and `strip_ansi`, with a vendored Unicode width table and

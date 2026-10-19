@@ -26,6 +26,7 @@ def _run(cmd: list[str], stdin: bytes = b"") -> subprocess.CompletedProcess[byte
 
 
 @pytest.mark.e2e
+@pytest.mark.skipif(not (ROOT / "src").is_dir(), reason="needs the source tree to build")
 def test_wheel_installs_and_the_script_works(tmp_path: Path) -> None:
     dist = tmp_path / "dist"
     built = _run(
@@ -58,7 +59,7 @@ def test_wheel_installs_and_the_script_works(tmp_path: Path) -> None:
     done = _run([str(script), "slice", "1", "3"], f"x{FAMILY}y\n".encode())
     assert done.stdout == f"{FAMILY}\n".encode()
     failed = _run([str(script), "pad", "3", "--fill", "\u4f60"], b"abc\n")
-    assert failed.returncode == 1 and b"error" in failed.stderr and failed.stdout == b""
+    assert failed.returncode == 2 and b"error" in failed.stderr and failed.stdout == b""
     version = _run([str(script), "--version"])
     assert version.stdout.strip() == f"cellstr {cellstr.__version__}".encode()
     helped = _run([str(script), "--help"])

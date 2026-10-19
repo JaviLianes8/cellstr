@@ -10,10 +10,21 @@ from types import ModuleType
 
 from conftest import MANIFEST, UCD, needs_ucd
 
-from cellstr._props import EMOJI_BIT, EXT_PICT_BIT, GCB, MODIFIER_BIT, WIDTH_SHIFT, prop
+import cellstr
+from cellstr._props import (
+    EMOJI_BIT,
+    EXT_PICT_BIT,
+    GCB,
+    MODIFIER_BIT,
+    TEXT_VS_BIT,
+    WIDTH_SHIFT,
+    prop,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
-PACKAGE = ROOT / "src" / "cellstr"
+# The package under test: the source tree, or the installed wheel when the tests run from
+# an unpacked sdist without src/, so the shipped tables are the ones checked.
+PACKAGE = Path(cellstr.__file__).resolve().parent
 
 
 def _generator() -> ModuleType:
@@ -57,10 +68,11 @@ def test_snapshot_files_match_the_manifest() -> None:
 @needs_ucd
 def test_every_snapshot_file_is_the_same_unicode_version() -> None:
     version = _generator().unicode_version(UCD)
-    for path in UCD.glob("*.txt"):
-        if path.name in MANIFEST and not path.name.startswith("EastAsianWidth-"):
-            head = path.read_text(encoding="utf-8")[:2000]
-            assert re.search(rf"(-|Version: ){re.escape(version)}", head), path.name
+    short = version.rsplit(".", 1)[0]  # emoji-test.txt states only "Version: 18.0"
+    pattern = rf"-{re.escape(version)}\.txt|Version: ({re.escape(version)}|{re.escape(short)})$"
+    for name in MANIFEST:
+        head = (UCD / name).read_text(encoding="utf-8")[:2000]
+        assert re.search(pattern, head, re.M), name
 
 
 def test_spot_properties_from_the_tables() -> None:
@@ -73,7 +85,9 @@ def test_spot_properties_from_the_tables() -> None:
     assert prop(0x1F3FB) & MODIFIER_BIT
     assert prop(ord("#")) & EMOJI_BIT and not prop(ord("A")) & EMOJI_BIT
     assert prop(0x0915) >> 5 & 0x03 == 2  # DEVANAGARI LETTER KA is InCB=Consonant
-    assert prop(0x4E00) >> WIDTH_SHIFT == 2
-    assert prop(0x0301) >> WIDTH_SHIFT == 0
-    assert prop(0x00A1) >> WIDTH_SHIFT == 3  # INVERTED EXCLAMATION MARK is ambiguous
-    assert prop(0x10FFFF) >> WIDTH_SHIFT == 1
+    assert (prop(0x4E00) >> WIDTH_SHIFT) & 0x03 == 2
+    assert (prop(0x0301) >> WIDTH_SHIFT) & 0x03 == 0
+    assert (prop(0x00A1) >> WIDTH_SHIFT) & 0x03 == 3  # INVERTED EXCLAMATION MARK is ambiguous
+    assert (prop(0x10FFFF) >> WIDTH_SHIFT) & 0x03 == 1
+    assert prop(0x231A) & TEXT_VS_BIT and prop(ord("#")) & TEXT_VS_BIT  # listed with VS15
+    assert not prop(0x1F600) & TEXT_VS_BIT and not prop(ord("A")) & TEXT_VS_BIT

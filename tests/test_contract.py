@@ -85,6 +85,18 @@ UCD_VECTORS = [
     (0x3FFFD, 2, 2, "EastAsianWidth W, reserved (Cn) in Plane 3"),
     (0xE000, 1, 2, "EastAsianWidth A (private use)"),
     (0x10FFFF, 1, 1, "EastAsianWidth N (noncharacter)"),
+    (0x0600, 1, 1, "Cf, but PropList Prepended_Concatenation_Mark: visible"),
+    (0x110CD, 1, 1, "Cf, but PropList Prepended_Concatenation_Mark: visible"),
+    (0xFFF9, 0, 0, "Cf, not a Prepended_Concatenation_Mark"),
+    (0x3164, 0, 0, "Lo, DerivedCoreProperties Default_Ignorable_Code_Point"),
+    (0xFFA0, 0, 0, "Lo, DerivedCoreProperties Default_Ignorable_Code_Point"),
+    (0x115F, 2, 2, "Default_Ignorable_Code_Point, but a leading jamo; EastAsianWidth W"),
+    (0x2065, 0, 0, "Cn, Default_Ignorable_Code_Point (reserved)"),
+    (0xE0FFF, 0, 0, "Cn, Default_Ignorable_Code_Point (reserved)"),
+    (0x2028, 0, 0, "DerivedGeneralCategory Zl"),
+    (0x2029, 0, 0, "DerivedGeneralCategory Zp"),
+    (0x1F1E6, 1, 1, "Regional_Indicator, EastAsianWidth N"),
+    (0x302E, 2, 2, "DerivedGeneralCategory Mc, EastAsianWidth W"),
 ]
 SAMPLE = "\x1b[1mNa\u00efve\x1b[0m caf\u00e9 \U0001f469\u200d\U0001f4bb "
 SAMPLE += "\U0001f1ef\U0001f1f5 \u4f60e\u0301!"

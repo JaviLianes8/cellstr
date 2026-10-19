@@ -6,9 +6,11 @@ operation, while only printable cells count toward a width.
 
 from __future__ import annotations
 
-from ._cells import Cell, check_tabsize, expand_tabs, iter_cells, total_width
+from ._args import check_ambiguous, check_int, check_tabsize, check_text, check_width, show
+from ._cells import Cell, cells, expand, total_width
 from ._graphemes import grapheme_ends
-from ._width import check_ambiguous, cluster_width, text_width
+from ._join import Joiner
+from ._width import cluster_width, text_width
 
 
 def cell_slice(
@@ -27,8 +29,14 @@ def cell_slice(
     OSC 8 hyperlinks still open and close. A zero-width cluster belongs to the column it
     sits at, and one at the very end belongs to a non-empty range that reaches the end
     from a column before it (for text with no width at all, to any range starting at 0
-    that is open-ended or non-empty). An empty range holds no printable text. With ``tabsize``
-    set, a tab becomes the spaces it covers inside the range, so the layout survives.
+    that is open-ended or non-empty). An empty range holds no printable text. With
+    ``tabsize`` set, a tab becomes the spaces it covers inside the range, so the layout
+    survives. ``start`` and ``stop`` are non-negative integers; ``stop=None`` means the end.
+
+    The result never holds an escape sequence or a wider cluster that the text did not
+    hold. A stray ESC (one that starts no complete sequence) is dropped when the result
+    ends with it or goes on with printable ASCII, which could extend it into a sequence,
+    and a zero-width cluster that the cut glues to an emoji, widening it, is dropped.
 
     For plain text, ``cell_slice(t, 0, k) + cell_slice(t, k)`` equals ``t`` whenever
     ``k`` does not fall inside a wide cluster.
@@ -38,48 +46,65 @@ def cell_slice(
     >>> cell_slice("a\\u4f60b", 0, 2), cell_slice("e\\u0301tude", 0, 1) == "e\\u0301"
     ('a', True)
     """
-    if start < 0 or (stop is not None and stop < 0):
-        raise ValueError("cell_slice does not support negative indices")
-    cells = list(iter_cells(text, ambiguous=ambiguous, tabsize=tabsize))
-    total = total_width(cells)
+    text = check_text(text)
+    first = check_width(start, "start")
+    end = None if stop is None else check_width(stop, "stop")
+    policy = check_ambiguous(ambiguous)
+    found = list(cells(text, policy, check_tabsize(tabsize)))
+    out = Joiner(policy)
+    keep_range(out, found, first, end, tabsize is not None)
+    return out.text()
+
+
+def keep_range(out: Joiner, found: list[Cell], first: int, stop: int | None, tabs: bool) -> None:
+    """Add to ``out`` every escape and the cells of ``found`` in columns ``[first, stop)``."""
+    total = total_width(found)
     limit = total if stop is None else min(stop, total)
     # A zero-width cluster at the very end: who gets it (see the docstring).
-    reach = (start < total) if total else (start == 0 and (stop is None or stop > 0))
+    reach = (first < total) if total else (first == 0 and (stop is None or stop > 0))
     tail = limit == total and reach
-    return "".join(_keep(cell, start, limit, total, tail, tabsize) for cell in cells)
+    for cell in found:
+        if cell.escape:
+            out.escape(cell.text)
+        elif tabs and cell.text == "\t":
+            spaces = min(cell.column + cell.width, limit) - max(cell.column, first)
+            if spaces > 0:
+                out.fixed(" " * spaces)
+        elif _inside(cell, first, limit, total, tail):
+            out.cluster(cell.text, cell.width)
 
 
-def _keep(cell: Cell, start: int, limit: int, total: int, tail: bool, tabsize: int | None) -> str:
-    if cell.escape:
-        return cell.text
-    if tabsize is not None and cell.text == "\t":
-        return " " * max(0, min(cell.column + cell.width, limit) - max(cell.column, start))
+def _inside(cell: Cell, start: int, limit: int, total: int, tail: bool) -> bool:
     if cell.column < start:
-        return ""
+        return False
     if cell.width:
-        return "" if cell.column + cell.width > limit else cell.text
-    return cell.text if cell.column < limit or (tail and cell.column == total) else ""
+        return cell.column + cell.width <= limit
+    return cell.column < limit or (tail and cell.column == total)
 
 
-def check_fill(fillchar: str, ambiguous: int) -> str:
+def check_fill(fillchar: object, ambiguous: int) -> str:
     """Return ``fillchar`` after checking it is one grapheme cluster one cell wide."""
+    fill = check_text(fillchar, "fillchar")
     if (
-        not fillchar
-        or "\x1b" in fillchar
-        or next(grapheme_ends(fillchar)) != len(fillchar)
-        or cluster_width(fillchar, ambiguous) != 1
+        not fill
+        or "\x1b" in fill
+        or next(grapheme_ends(fill)) != len(fill)
+        or cluster_width(fill, ambiguous) != 1
     ):
-        raise ValueError(f"fillchar must be a single one-cell character, not {fillchar!r}")
-    return fillchar
+        raise ValueError(f"fillchar must be a single one-cell character, not {show(fill)}")
+    return fill
 
 
-def _prepare(text: str, fillchar: str, ambiguous: int, tabsize: int | None) -> tuple[str, int]:
-    check_ambiguous(ambiguous)
-    check_fill(fillchar, ambiguous)
-    tabsize = check_tabsize(tabsize)
-    if tabsize is not None:
-        text = expand_tabs(text, tabsize, ambiguous=ambiguous)
-    return text, text_width(text, ambiguous)
+def _prepare(
+    text: object, width: object, fillchar: object, ambiguous: object, tabsize: object
+) -> tuple[str, int, str]:
+    """Check the padding arguments; return the text, the cells to add and the fill."""
+    body = check_text(text)
+    size = check_int(width, "width")
+    policy = check_ambiguous(ambiguous)
+    fill = check_fill(fillchar, policy)
+    body = expand(body, check_tabsize(tabsize), policy)
+    return body, max(0, size - text_width(body, policy)), fill
 
 
 def ljust(
@@ -87,26 +112,28 @@ def ljust(
 ) -> str:
     """Pad ``text`` on the right to ``width`` display cells.
 
-    Text already ``width`` cells or wider is returned unchanged. ``fillchar`` must be one
-    cell wide. With ``tabsize`` set, tabs are expanded first (see ``expand_tabs``).
+    Text already ``width`` cells or wider gets no padding, nor does any text when
+    ``width`` is zero or negative (as with ``str.ljust``). ``fillchar`` must be one
+    cell wide. With ``tabsize`` set, tabs are expanded first (see ``expand_tabs``); a
+    stray ESC goes as in ``cell_slice``, so the fill never extends it into a sequence.
 
     >>> ljust("\\u4f60", 4) == "\\u4f60  "
     True
     """
-    text, used = _prepare(text, fillchar, ambiguous, tabsize)
-    return text + fillchar * max(0, width - used)
+    body, pad, fill = _prepare(text, width, fillchar, ambiguous, tabsize)
+    return body + fill * pad
 
 
 def rjust(
     text: str, width: int, fillchar: str = " ", *, ambiguous: int = 1, tabsize: int | None = None
 ) -> str:
-    """Pad ``text`` on the left to ``width`` display cells.
+    """Pad ``text`` on the left to ``width`` display cells (see ``ljust`` for the rules).
 
     >>> rjust("\\x1b[1m42\\x1b[0m", 5) == "   \\x1b[1m42\\x1b[0m"
     True
     """
-    text, used = _prepare(text, fillchar, ambiguous, tabsize)
-    return fillchar * max(0, width - used) + text
+    body, pad, fill = _prepare(text, width, fillchar, ambiguous, tabsize)
+    return fill * pad + body
 
 
 def center(
@@ -114,34 +141,12 @@ def center(
 ) -> str:
     """Centre ``text`` within ``width`` display cells; an odd cell of padding goes right.
 
-    >>> center("ab", 5)
-    ' ab  '
+    The odd cell always goes right, unlike ``str.center``, which moves it depending on
+    the parity of ``width``. The other rules are those of ``ljust``.
+
+    >>> center("ab", 5), center("abc", 6)
+    (' ab  ', ' abc  ')
     """
-    text, used = _prepare(text, fillchar, ambiguous, tabsize)
-    pad = max(0, width - used)
+    body, pad, fill = _prepare(text, width, fillchar, ambiguous, tabsize)
     left = pad // 2
-    return fillchar * left + text + fillchar * (pad - left)
-
-
-def splice(text: str, head: int, rstart: int, insert: str, ambiguous: int) -> str:
-    """Keep the clusters in ``[0, head)`` and ``[rstart, end)``, putting ``insert`` between.
-
-    Every escape sequence is kept exactly once, in place, and ``insert`` goes where the
-    first dropped cluster was.
-    """
-    cells = list(iter_cells(text, ambiguous=ambiguous))
-    total = total_width(cells)
-    out: list[str] = []
-    pending = True
-    for cell in cells:
-        end = cell.column + cell.width
-        left = end <= head if cell.width else cell.column < head
-        right = rstart <= cell.column and end <= total
-        if not (cell.escape or left) and pending:
-            out.append(insert)
-            pending = False
-        if cell.escape or left or right:
-            out.append(cell.text)
-    if pending:
-        out.append(insert)
-    return "".join(out)
+    return fill * left + body + fill * (pad - left)

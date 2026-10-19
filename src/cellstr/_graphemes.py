@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
+from ._args import check_text
 from ._props import EXT_PICT_BIT, GCB, INCB_SHIFT, prop
 
 _CR = GCB["CR"]
@@ -84,18 +85,64 @@ def _joins(
     return prev == _RI and cur == _RI and ri_run % 2 == 1  # GB12, GB13
 
 
-def iter_graphemes(s: str) -> Iterator[str]:
-    """Yield the extended grapheme clusters of ``s`` (UAX #29), left to right.
+# The break state after some text: the class of its last code point, the length of the
+# regional indicator run it ends with, the GB9c and GB11 flags of ``grapheme_ends``, and
+# the property code of the first code point of its last cluster.
+Scan = tuple[int, int, bool, int, int]
+
+
+def scan(text: str, state: Scan | None) -> tuple[bool, Scan | None]:
+    """Run the break rules over ``text`` placed after ``state`` (None: the start of a text).
+
+    Return whether ``text`` joins the cluster before it, and the state after ``text``.
+    """
+    joined = False
+    for index, char in enumerate(text):
+        code = prop(ord(char))
+        cur = code & 0x0F
+        incb = (code >> INCB_SHIFT) & 0x03
+        pict = code & EXT_PICT_BIT
+        if state is None:
+            prev, ri_run, after_linker, emoji, head = _CONTROL, 0, False, 0, code
+        else:
+            prev, ri_run, after_linker, emoji, head = state
+        if _joins(prev, cur, incb, pict, after_linker, emoji, ri_run):
+            joined = joined or index == 0
+        else:
+            head = code
+        after_linker = incb == _INCB_LINKER or (after_linker and incb == _INCB_EXTEND)
+        if pict or (emoji == 1 and cur == _EXTEND):
+            emoji = 1
+        else:
+            emoji = 2 if emoji == 1 and cur == _ZWJ else 0
+        state = (cur, ri_run + 1 if cur == _RI else 0, after_linker, emoji, head)
+    return joined, state
+
+
+def may_join(prev: int, code: int) -> bool:
+    """False when a code point of property ``code`` surely starts a cluster after ``prev``."""
+    incb = (code >> INCB_SHIFT) & 0x03
+    return _joins(prev & 0x0F, code & 0x0F, incb, code & EXT_PICT_BIT, True, 2, 1)
+
+
+def iter_graphemes(text: str) -> Iterator[str]:
+    """Return an iterator over the extended grapheme clusters of ``text`` (UAX #29).
 
     A grapheme cluster is what a reader perceives as one character: a base letter with
     its combining marks, a Hangul syllable built from jamo, an emoji ZWJ sequence, a
     flag made of two regional indicators, an Indic conjunct, or a CR LF pair. The
-    clusters concatenate back to ``s`` exactly.
+    clusters come left to right and concatenate back to ``text`` exactly. Escape
+    sequences get no special treatment here; ``iter_cells`` handles terminal text.
+    ``text`` is checked when the function is called, not when iteration starts.
 
-    >>> [len(g) for g in iter_graphemes("e\\u0301\\U0001f1ea\\U0001f1f8")]
-    [2, 2]
+    >>> [len(g) for g in iter_graphemes("e\\u0301\\U0001f1ea\\U0001f1f8!")]
+    [2, 2, 1]
     """
+    return _clusters(check_text(text))
+
+
+def _clusters(text: str) -> Iterator[str]:
     start = 0
-    for end in grapheme_ends(s):
-        yield s[start:end]
+    for end in grapheme_ends(text):
+        yield text[start:end]
         start = end

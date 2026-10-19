@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from cellstr import cell_len, cell_slice, char_width, grapheme_width, truncate
+from cellstr import cell_len, cell_slice, char_width, grapheme_width, iter_cells, truncate
 
 RED = "\x1b[31m"
 RESET = "\x1b[0m"
@@ -43,15 +43,15 @@ def test_suffix_with_tabs_or_line_breaks_is_rejected(suffix: str) -> None:
         truncate("abcdef", 3, suffix, tabsize=4)
 
 
-@pytest.mark.parametrize("bad", [2.0, "2", None])
+@pytest.mark.parametrize("bad", [2.0, "2", None, True])
 def test_ambiguous_must_be_an_int(bad: object) -> None:
-    with pytest.raises(ValueError, match="ambiguous"):
+    with pytest.raises(TypeError, match="ambiguous must be an int"):
         cell_len("\u03b1", ambiguous=bad)  # type: ignore[arg-type]
 
 
-@pytest.mark.parametrize("bad", [2.5, 4.0, "4"])
+@pytest.mark.parametrize("bad", [2.5, 4.0, "4", True])
 def test_tabsize_must_be_an_int(bad: object) -> None:
-    with pytest.raises(ValueError, match="tabsize"):
+    with pytest.raises(TypeError, match="tabsize must be an int"):
         cell_len("a\tb", tabsize=bad)  # type: ignore[arg-type]
 
 
@@ -65,3 +65,22 @@ def test_dangling_zwj_does_not_widen_a_narrow_symbol() -> None:
     assert grapheme_width("\u00a9\u200d") == char_width("\u00a9") == 1
     assert grapheme_width("\u00a9\ufe0f\u200d") == 2
     assert grapheme_width("\U0001f3f3\u200d\U0001f308") == 2
+
+
+def test_a_tag_sequence_widens_any_emoji_base() -> None:
+    tags = "\U000e0067\U000e0062\U000e007f"  # TAG LATIN SMALL LETTER G, B, CANCEL TAG
+    assert grapheme_width("\u263a" + tags) == 2  # a one-cell emoji base
+    assert grapheme_width("\U0001f3f4" + tags) == 2
+    assert cell_len("x" + tags) == 1  # not an emoji: the tags are zero-width format characters
+
+
+def test_ascii_controls_and_del_are_zero_width() -> None:
+    controls = "".join(map(chr, range(0x20))) + "\x7f"
+    assert cell_len(f"a{controls}b") == 2
+    assert cell_len(f"a{controls}\u4f60") == 3  # the same on the non-ASCII path
+
+
+def test_a_carriage_return_starts_a_new_line_for_tab_stops() -> None:
+    assert cell_len("ab\rc\td", tabsize=4) == 7  # the tab advances from column 3 to 6
+    assert cell_len("ab\r\nc\td", tabsize=4) == 7
+    assert [c.width for c in iter_cells("abcde\rx\ty", tabsize=4)] == [1, 1, 1, 1, 1, 0, 1, 3, 1]

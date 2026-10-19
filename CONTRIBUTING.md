@@ -16,8 +16,10 @@ git ignores. The generator check and the tests that need them skip until they ar
 ## Before you open a pull request
 
 - Keep public API in `src/cellstr/__init__.py`; internals live in `_`-prefixed modules.
-- Add a test for the behaviour you change. Tests inject time, disk and network; they
-  never touch the real thing.
+- Add a test for the behaviour you change. Unit tests work on in-memory strings. The
+  oracle and conformance tests read the fetched files in `data/ucd/` and the fixtures in
+  `tests/fixtures/` from disk, and the wheel end-to-end test (marker `e2e`) builds and
+  installs the package in a subprocess, using the network.
 - Never edit `src/cellstr/_ucd_*.py` by hand: they are generated from the fetched `data/ucd/` files
   by `python scripts/gen_ucd_tables.py` (see `data/ucd/MANIFEST.json`).
 - Run `scripts/check.ps1` (format, lint, types, table freshness, tests) and make sure it
