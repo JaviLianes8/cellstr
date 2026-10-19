@@ -8,6 +8,7 @@ import importlib
 import pytest
 
 MODULES = [
+    "cellstr",
     "cellstr._ansi",
     "cellstr._cells",
     "cellstr._graphemes",
