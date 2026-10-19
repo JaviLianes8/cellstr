@@ -275,6 +275,10 @@ Lens b's observations (unterminated strings as text, an interrupted CSI, a lone 
 indicator with VS16, Old Hangul L L V, noncharacters) were noted as consistent with the
 documented policy and need no change.
 
-Fixes in commit 624971b; gates for this round below.
+Fixes in commit 624971b, report in 885be0a. Gates at 885be0a on Elena's PC (CPython 3.14),
+from a fresh clone of the branch with the ten Unicode files present and wcwidth 0.9.2:
+`ruff format --check .`, `ruff check .`, `mypy --strict src`, `mypy --strict src tests
+scripts` and `python scripts/gen_ucd_tables.py --check` exit 0; `pytest` 2,741 passed,
+none skipped, in 43 s. The commit after it changes only this report.
 
 Disputed findings: none.
