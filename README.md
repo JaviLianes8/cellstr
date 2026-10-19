@@ -43,8 +43,9 @@ What it gets right:
   with accents is one unit: measured once and never split by slicing or truncation.
 - **Escape sequences.** SGR colours, OSC 8 hyperlinks, cursor movement and the other
   ECMA-48 families, in their 7-bit form (starting with ESC), count as nothing and are kept
-  in place, so styled text stays styled. Cutting or padding never turns a stray ESC and the
-  text after it into a new sequence. The 8-bit C1 introducers such as U+009B are
+  in place, so styled text stays styled. An escape still ends the grapheme cluster before
+  it, so the text that `strip_ansi` returns can measure differently (see the GUIDE).
+  Cutting or padding never turns a stray ESC and the text after it into a new sequence. The 8-bit C1 introducers such as U+009B are
   zero-width controls, and what follows them counts as text.
 - **Ambiguous width.** Greek, Cyrillic, box drawing and circled digits are one cell in
   Western terminals and two in CJK ones. Pass `ambiguous=2` to any function that measures

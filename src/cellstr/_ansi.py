@@ -37,7 +37,10 @@ def strip_ansi(text: str) -> str:
     SOS, PM and APC strings, charset designations and the single-byte escapes. A string
     sequence with no terminator is never swallowed: the text after its ESC is kept. A
     stray ESC, one that starts no complete sequence, is removed too, so the result holds
-    no ESC at all and stripping it again changes nothing.
+    no ESC at all and stripping it again changes nothing. An escape ends the grapheme
+    cluster before it, so removing one can join the clusters on either side, and the
+    result may measure differently from ``text``: U+2764, an escape and VS16 measure one
+    cell, the two-cell emoji left after stripping two.
 
     >>> strip_ansi("\\x1b[1;31merror\\x1b[0m: \\x1b]8;;https://example.com\\x07docs\\x1b]8;;\\x07")
     'error: docs'

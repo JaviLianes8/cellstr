@@ -4,15 +4,16 @@ Cutting, padding and tab expansion put next to each other pieces that were not n
 in the input. Two things could then appear that the input did not hold: an escape sequence,
 when a stray ESC (one that starts no complete sequence) meets printable ASCII, and a wider
 grapheme cluster, when an orphan such as VS16 or a tag character meets an emoji. ``Joiner``
-drops the stray ESC, or the cluster that would fuse, in exactly those cases.
+drops the stray ESC, or the cluster that would fuse, in exactly those cases, for the
+clusters of the text and for the text the caller adds alike.
 """
 
 from __future__ import annotations
 
 from ._ansi import segments
-from ._graphemes import Scan, may_join, scan
+from ._graphemes import Scan, grapheme_ends, may_join, scan
 from ._props import EMOJI_BIT, EXT_PICT_BIT, MODIFIER_BIT, prop
-from ._width import code_width
+from ._width import cluster_width, code_width
 
 _ESC = "\x1b"
 
@@ -42,13 +43,16 @@ class Joiner:
             self._add(text, width)
 
     def fixed(self, text: str) -> None:
-        """Keep text the caller adds (a suffix, spaces for a tab); stray ESCs in it may go."""
+        """Keep text the caller adds (a suffix, spaces for a tab); stray ESCs in it may go.
+
+        A cluster of it that would glue to the kept text and widen it goes, as in ``cluster``.
+        """
         for index, piece in enumerate(text.split(_ESC)):
             if index:
                 self._stray += 1
             if piece:
                 self._settle(piece)
-                self._add(piece, None)
+                self._add_fixed(piece)
 
     def insert(self, text: str) -> None:
         """Keep a suffix: its escape sequences, and its text as ``fixed``."""
@@ -69,6 +73,15 @@ class Joiner:
                 self._parts.append(_ESC * self._stray)
                 self._tail, self._state = _ESC, None
             self._stray = 0
+
+    def _add_fixed(self, piece: str) -> None:
+        # Only the clusters at its start can glue to what is kept, so the rest goes in whole.
+        while piece and self._tail and may_join(prop(ord(self._tail[-1])), prop(ord(piece[0]))):
+            end = next(grapheme_ends(piece))
+            self._add(piece[:end], cluster_width(piece[:end], self._ambiguous))
+            piece = piece[end:]
+        if piece:
+            self._add(piece, None)
 
     def _add(self, text: str, width: int | None) -> None:
         tail = self._tail

@@ -45,7 +45,9 @@ Versioning. Every change against 0.2.1 is listed below.
   `expand_tabs` never return an escape sequence or a wider cluster that the input did not
   hold. A stray ESC is dropped where the result ends with it or goes on with printable
   ASCII, and a zero-width cluster that a cut would glue to an emoji, widening it, is
-  dropped. In 0.2.1 `truncate("\x1b你abc", 2, "~")` returned `"\x1b~"` (an escape
+  dropped. So is a cluster at the start of a suffix that would glue to the kept text and
+  widen it, such as VS16 or a tag character after U+2764, so `truncate`,
+  `truncate_detailed` and `fit` never return more than `width` cells. In 0.2.1 `truncate("\x1b你abc", 2, "~")` returned `"\x1b~"` (an escape
   sequence, zero cells), `expand_tabs("\x1b[\t~", 4)` a CSI sequence, and a middle cut
   of `"❤\xad\U000e0067"` to one cell a two-cell emoji.
 - A middle cut gives a cell that one part cannot use, because of a wide cluster at its

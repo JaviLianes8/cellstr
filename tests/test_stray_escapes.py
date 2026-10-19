@@ -1,4 +1,4 @@
-"""Results never hold an escape sequence or a cluster that the input did not have.
+"""Results never hold an escape sequence or a wider cluster that the input did not have.
 
 A stray ESC (one that starts no complete sequence) and an orphan extender (a variation
 selector, a tag or a joiner cut off from its base) are harmless where they sit, but once a
@@ -82,7 +82,7 @@ BLOCKS = [
     "\u4f60", "\u2764", "\ufe0f", "\ufe0e", "\u200d", "\U0001f600", "\U0001f3fb",
     "\U000e0067", "\xad", "\u0301", "\U0001f1ea", "\u1100", "\u1161", "#", "\u03b1",
 ]  # fmt: skip
-SUFFIXES = ["...", "", "~", "\x1b[0m\u2026", "\x1b"]
+SUFFIXES = ["...", "", "~", "\x1b[0m\u2026", "\x1b", "\ufe0f~", "\U000e0067", "\u200d!"]
 
 
 def _texts(seed: int, count: int) -> list[str]:
@@ -124,6 +124,8 @@ def test_fuzz_cuts_keep_exactly_the_escapes_and_the_width(seed: int) -> None:
                 assert _clean(cut.text), (text, cut)
                 fitted = fit(text, width, suffix=suffix, **options)  # type: ignore[arg-type]
                 assert cell_len(fitted, ambiguous=policy) == width, (text, suffix, fitted)
+                again = truncate(cut.text, width, suffix, **options)  # type: ignore[arg-type]
+                assert again == cut.text, (text, suffix, cut)
 
 
 @pytest.mark.parametrize("seed", [4, 5])

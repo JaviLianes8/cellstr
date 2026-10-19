@@ -94,7 +94,8 @@ def grapheme_width(cluster: str, *, ambiguous: int = 1) -> int:
     the emoji is East Asian Ambiguous) if emoji-variation-sequences.txt lists that text
     presentation sequence; after any other emoji VS15 changes nothing. Any other cluster
     is the sum of its code points, which keeps combining marks at zero and conjoining
-    Hangul jamo at the width of the syllable.
+    Hangul jamo at the width of the syllable; so is a cluster that a skin tone modifier
+    starts on its own, a two-cell symbol rather than an emoji sequence.
 
     >>> grapheme_width("\\U0001f468\\u200d\\U0001f469\\u200d\\U0001f467")
     2

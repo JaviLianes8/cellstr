@@ -36,7 +36,9 @@ def cell_slice(
     The result never holds an escape sequence or a wider cluster that the text did not
     hold. A stray ESC (one that starts no complete sequence) is dropped when the result
     ends with it or goes on with printable ASCII, which could extend it into a sequence,
-    and a zero-width cluster that the cut glues to an emoji, widening it, is dropped.
+    and a zero-width cluster that the cut glues to an emoji, widening it, is dropped. Any
+    other one stays and joins its new neighbour at the same width, as a combining mark
+    that followed a tab does with the space before it.
 
     For plain text, ``cell_slice(t, 0, k) + cell_slice(t, k)`` equals ``t`` whenever
     ``k`` does not fall inside a wide cluster.

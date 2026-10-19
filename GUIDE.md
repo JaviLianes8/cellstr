@@ -42,7 +42,7 @@ single glyph:
 
 | Cluster | Example | Cells |
 | --- | --- | --- |
-| Emoji + VS16 (U+FE0F, emoji presentation) | ❤️ | 2 |
+| Emoji + VS16 (U+FE0F, emoji presentation); a cluster that a lone skin tone modifier starts adds up instead (see "Variation selectors") | ❤️ | 2 |
 | Emoji + VS15 (U+FE0E, text presentation), for the 371 sequences emoji-variation-sequences.txt lists | ⌚︎ | 1, or `ambiguous` for an East Asian Ambiguous emoji such as ™︎ |
 | Emoji modifier sequence (skin tone) | 👍🏽 | 2 |
 | Emoji ZWJ sequence | 👨‍👩‍👧 | 2 |
@@ -57,6 +57,8 @@ char_width("❤")  # -> 1
 grapheme_width("❤️")  # -> 2
 grapheme_width("⌚︎")  # -> 1
 grapheme_width("\U0001f44d\U0001f3fd")  # -> 2
+grapheme_width("\U0001f1ef"), grapheme_width("\U0001f1ef\ufe0f")  # -> (1, 2)
+grapheme_width("\U0001f3fe\ufe0f"), grapheme_width("\U0001f3fe\ufe0f\u1b3b")  # -> (2, 3)
 grapheme_width("각")  # -> 2
 char_width("é"), char_width("́")  # -> (1, 0)
 ```
@@ -93,9 +95,13 @@ the next cell; `cellstr` measures two. VS15 asks for text presentation, and Unic
 the emoji that have one (emoji-variation-sequences.txt; UTS #51 ED-8a). For those,
 `cellstr` measures one cell (the `ambiguous` width for an East Asian Ambiguous emoji such
 as ™), while terminals that ignore VS15 keep a wide emoji at two. After any other emoji,
-such as U+1F600 😀, a variation selector is not sanctioned and changes nothing, so 😀︎
-stays two cells. The `wcwidth` package 0.9.2 gives the same width for every emoji
-followed by VS15 or VS16, except a lone regional indicator (see below).
+such as U+1F600 😀, VS15 is not sanctioned and changes nothing, so 😀︎ stays two cells.
+VS16 makes every emoji two cells, sanctioned or not, so a lone regional indicator, one
+cell on its own, is two cells with VS16. The `wcwidth` package 0.9.2 gives the same width
+for every emoji followed by VS15 or VS16, except a lone regional indicator (see below).
+A skin tone modifier on its own (not after an emoji it modifies) is a two-cell symbol,
+not an emoji sequence: a cluster it starts adds up its code points like any other, so
+🏾 with VS16 is two cells and with a spacing mark after that three (two in `wcwidth`).
 
 **Spacing marks.** Vowel signs in Indic scripts such as U+093F are spacing marks (Mc).
 Kuhn's reference and glibc give them one cell (only Mn, Me and Cf are zero there); the
@@ -130,25 +136,34 @@ sum(char_width(ch) for ch in strip_ansi(text))  # -> 6
   cut.
 - With `tabsize` set, tabs advance to the next tab stop, counted from the start of the
   line, and become spaces in slices and padded output so the layout does not shift.
-- A result never holds an escape sequence or a cluster that the text did not hold. A
-  stray ESC, one that starts no complete sequence (such as the ESC of an unterminated
-  `ESC ]` or `ESC [`), is a zero-width control; slicing, truncation, padding and
-  `expand_tabs` drop it when the next character in the result is printable ASCII, which
-  could otherwise extend it into a new sequence. A zero-width cluster left alone by a cut,
-  such as VS16 or a tag character, is dropped when the cut would glue it to an emoji and
-  widen it. `strip_ansi` removes every stray ESC.
+- The result of slicing, truncation, padding or `expand_tabs` never holds an escape
+  sequence or a wider cluster that the text (and the suffix) did not hold, so its width is
+  the width of the pieces it keeps. A stray ESC, one that starts no complete sequence
+  (such as the ESC of an unterminated `ESC ]` or `ESC [`), is a zero-width control; it is
+  dropped when the next character in the result is printable ASCII, which could otherwise
+  extend it into a new sequence. A zero-width cluster that a cut, a tab expansion or the
+  start of a suffix puts after a new neighbour, such as VS16 or a tag character, is
+  dropped when it would glue to an emoji and widen it. Otherwise it stays and joins that
+  neighbour: a combining mark that followed a tab can end up on a space or on the letter
+  kept before the cut, at the same width.
+- `strip_ansi` removes every escape sequence and every stray ESC, and nothing else. An
+  escape sequence or a stray ESC ends the cluster before it, so removing one can join the
+  clusters on either side into one cluster, and the stripped text may then measure
+  differently: `cell_len("\u2764\x1b[0m\ufe0f")` is 1 but the stripped text, U+2764
+  followed by VS16, is a two-cell emoji.
 - Only the 7-bit escape forms are recognised. The 8-bit C1 introducers (U+009B CSI,
   U+009D OSC, U+0090 DCS and the rest) are zero-width controls, and the text after them
   is measured and kept as text.
 
 ```python
-from cellstr import cell_slice, fit, truncate
+from cellstr import cell_len, cell_slice, fit, strip_ansi, truncate
 
 link = "\x1b]8;;https://example.com\x1b\\docs\x1b]8;;\x1b\\"
 cell_slice(link, 0, 2)  # -> "\x1b]8;;https://example.com\x1b\\do\x1b]8;;\x1b\\"
 log = "12:00:01 worker-7 job finished"
 truncate(log, 16, position="start")  # -> "... job finished"
 fit("\x1b[1mok\x1b[0m", 4, align="center")  # -> " \x1b[1mok\x1b[0m "
+cell_len("\u2764\x1b[0m\ufe0f"), cell_len(strip_ansi("\u2764\x1b[0m\ufe0f"))  # -> (1, 2)
 ```
 
 ## Errors
