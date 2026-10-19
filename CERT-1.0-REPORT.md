@@ -15,7 +15,7 @@ Progress:
 - [x] Docs: README, GUIDE, CHANGELOG (items 11, 12)
 - [x] Packaging, e2e and every Python (items 8, 10, 13, 14)
 - [x] Gates (item 15)
-- [x] PR and trace guard CLEAN
+- [x] PR #4 and trace guard CLEAN
 - [ ] Five QA lenses (item 19)
 - [ ] Independent review (item 16)
 
@@ -39,7 +39,7 @@ Progress:
 | 14 | sdist and wheel contents | PASS |
 | 15 | Gates each exit 0 | PASS: see Gates |
 | 16 | Independent reviewer | pending (next stage) |
-| 17 | PR and trace guard | PR "cellstr 1.0.0" from `release/1.0.0`, trace guard CLEAN; merge and publish left to the maintainer |
+| 17 | PR and trace guard | PR #4 "cellstr 1.0.0" from `release/1.0.0`, trace guard CLEAN; merge and publish left to the maintainer |
 | 18 | Contracts bite (mutations) | PASS: author round of 30 mutants, 29 killed, 1 equivalent |
 | 19 | Five independent QA lenses | pending (next stage) |
 
