@@ -55,6 +55,11 @@ Versioning. Every change against 0.2.1 is listed below.
   toned thumbs up that neither the text nor the suffix held. In 0.2.1 `truncate("\x1b你abc", 2, "~")` returned `"\x1b~"` (an escape
   sequence, zero cells), `expand_tabs("\x1b[\t~", 4)` a CSI sequence, and a middle cut
   of `"❤\xad\U000e0067"` to one cell a two-cell emoji.
+- `ljust`, `rjust`, `center` and `fit` always return exactly `width` cells when they pad.
+  A fill that joins the cluster at the edge of the text into one of another width is a
+  space in the one cell next to the text. In 0.2.1 `rjust("️ab", 5, "#")` returned
+  six cells (the last `#` and the VS16 form an emoji) and
+  `ljust("👨‍", 4, "☠")` three (the skull joined the ZWJ sequence).
 - A middle cut gives a cell that one part cannot use, because of a wide cluster at its
   cut, to the other part: `truncate("你你你你你", 9, position="middle")` is
   `"你你...你"` (nine cells), where 0.2.1 returned `"你...你"` (seven).

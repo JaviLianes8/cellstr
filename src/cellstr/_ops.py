@@ -100,14 +100,27 @@ def check_fill(fillchar: object, ambiguous: int) -> str:
 
 def _prepare(
     text: object, width: object, fillchar: object, ambiguous: object, tabsize: object
-) -> tuple[str, int, str]:
-    """Check the padding arguments; return the text, the cells to add and the fill."""
+) -> tuple[str, int, str, int]:
+    """Check the padding arguments; return the text, the cells to add, the fill and policy."""
     body = check_text(text)
     size = check_int(width, "width")
     policy = check_ambiguous(ambiguous)
     fill = check_fill(fillchar, policy)
     body = expand(body, check_tabsize(tabsize), policy)
-    return body, max(0, size - text_width(body, policy)), fill
+    return body, max(0, size - text_width(body, policy)), fill, policy
+
+
+def _pad(body: str, left: int, right: int, fill: str, ambiguous: int) -> str:
+    # The fill cell next to the text is a space when the fill would join the edge cluster
+    # into one of another width: a space never does, so the result is exactly as wide.
+    width = text_width(body, ambiguous) + left
+    head = fill * left + body
+    if left and text_width(head, ambiguous) != width:
+        head = fill * (left - 1) + " " + body
+    after = fill * right
+    if right and text_width(head + fill, ambiguous) != width + 1:
+        after = " " + fill * (right - 1)
+    return head + after
 
 
 def ljust(
@@ -119,12 +132,15 @@ def ljust(
     ``width`` is zero or negative (as with ``str.ljust``). ``fillchar`` must be one
     cell wide. With ``tabsize`` set, tabs are expanded first (see ``expand_tabs``); a
     stray ESC goes as in ``cell_slice``, so the fill never extends it into a sequence.
+    The result is exactly ``width`` cells when it is padded: a fill that would join the
+    cluster at the edge of the text into one of another width (after an orphan VS16 or
+    skin tone modifier at its start, after a ZWJ at its end) is a space in that one cell.
 
     >>> ljust("\\u4f60", 4) == "\\u4f60  "
     True
     """
-    body, pad, fill = _prepare(text, width, fillchar, ambiguous, tabsize)
-    return body + fill * pad
+    body, pad, fill, policy = _prepare(text, width, fillchar, ambiguous, tabsize)
+    return _pad(body, 0, pad, fill, policy)
 
 
 def rjust(
@@ -135,8 +151,8 @@ def rjust(
     >>> rjust("\\x1b[1m42\\x1b[0m", 5) == "   \\x1b[1m42\\x1b[0m"
     True
     """
-    body, pad, fill = _prepare(text, width, fillchar, ambiguous, tabsize)
-    return fill * pad + body
+    body, pad, fill, policy = _prepare(text, width, fillchar, ambiguous, tabsize)
+    return _pad(body, pad, 0, fill, policy)
 
 
 def center(
@@ -150,6 +166,5 @@ def center(
     >>> center("ab", 5), center("abc", 6)
     (' ab  ', ' abc  ')
     """
-    body, pad, fill = _prepare(text, width, fillchar, ambiguous, tabsize)
-    left = pad // 2
-    return fill * left + body + fill * (pad - left)
+    body, pad, fill, policy = _prepare(text, width, fillchar, ambiguous, tabsize)
+    return _pad(body, pad // 2, pad - pad // 2, fill, policy)

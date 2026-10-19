@@ -9,7 +9,7 @@ cluster wider or narrower is left out. Every vector is hand-written.
 
 from __future__ import annotations
 
-from cellstr import Truncation, cell_len, fit, truncate, truncate_detailed
+from cellstr import Truncation, cell_len, cell_slice, expand_tabs, fit, truncate, truncate_detailed
 
 MAN_ZWJ = "\U0001f468\u200d"
 LAPTOP = "\U0001f4bb"
@@ -117,3 +117,26 @@ def test_an_orphan_after_the_rest_of_a_suffix_is_measured_on_that_rest() -> None
     # only to the "x" after it, at the same width.
     cut = truncate("a\u2764bcd\t\U000e0067yz", 5, "\u200dx", position="middle", tabsize=8)
     assert cut == "a\u2764\u200dx\U000e0067yz" and cell_len(cut) == 5
+
+
+def test_every_leading_suffix_cluster_that_would_glue_is_checked_not_only_the_first() -> None:
+    # The ZWJ glues to the grin at the same width; the laptop after it would then fuse
+    # the two emoji into one two-cell sequence, so it goes, and so does the rest.
+    assert truncate("😀abcdef", 4, "‍" + LAPTOP) == GRIN_ZWJ
+    assert truncate("😀abc", 4, "‍😀") == GRIN_ZWJ
+
+
+def test_pieces_that_may_join_but_break_leave_only_the_last_cluster_open() -> None:
+    # Each consonant may join the one before it but breaks from it; measuring the arrow
+    # and its VS15 together with the first one would drop the second.
+    text = "↔︎कक"
+    assert cell_slice(text, 0, 3) == text
+    assert expand_tabs("	" + text, 4) == "    " + text
+    assert truncate("x" + text, 3, "", position="start") == text
+
+
+def test_an_orphan_after_a_suffix_of_three_clusters_is_measured_on_its_last_one() -> None:
+    # The suffix ends in a flag and a lone regional indicator; the mark joins only that.
+    flags = "🇦" * 3
+    cut = truncate("abcd	́yz", 8, "x" + flags, position="middle", tabsize=8)
+    assert cut == "abx" + flags + "́yz" and cell_len(cut) == 8
