@@ -17,6 +17,7 @@ Progress:
 - [x] Gates (item 15)
 - [x] PR #4 and trace guard CLEAN
 - [x] QA round 1: five lenses run, every finding fixed (see QA lenses)
+- [x] QA round 2: round 1 confirmed fixed, eleven new findings fixed, none disputed (8366709)
 - [ ] Five QA lenses PASS on re-verification (item 19)
 - [ ] Independent review (item 16)
 
@@ -42,7 +43,7 @@ Progress:
 | 16 | Independent reviewer | pending (next stage) |
 | 17 | PR and trace guard | PR #4 "cellstr 1.0.0" from `release/1.0.0`, trace guard CLEAN; merge and publish left to the maintainer |
 | 18 | Contracts bite (mutations) | PASS: author round of 30 mutants, 29 killed, 1 equivalent |
-| 19 | Five independent QA lenses | round 1 run on 8380f22: 25 findings, all fixed, none disputed; re-verification by the same lenses pending |
+| 19 | Five independent QA lenses | round 1 on 8380f22: 25 findings, all fixed; round 2 on af60316: round 1 confirmed, 11 new findings, all fixed in 8366709, none disputed; re-verification pending |
 
 ## Baseline on 0.2.1 (before any change)
 
@@ -280,5 +281,39 @@ from a fresh clone of the branch with the ten Unicode files present and wcwidth 
 `ruff format --check .`, `ruff check .`, `mypy --strict src`, `mypy --strict src tests
 scripts` and `python scripts/gen_ucd_tables.py --check` exit 0; `pytest` 2,741 passed,
 none skipped, in 43 s. The commit after it changes only this report.
+
+Disputed findings: none.
+
+### Round 2, on af60316
+
+The same five lenses re-ran their round 1 findings on af60316: every one is fixed (lens a
+A1 to A5, lens b F1 to F5, lens c F1 to F5, and lens e's eight mutants E1 to E8 all
+killed). They also swept the code changed since 8380f22 and reported these:
+
+| Lens | Id | Finding | Fix |
+| --- | --- | --- | --- |
+| a | A6 | GUIDE named `strip_ansi` under "a result never holds a cluster the text did not hold", but removing an escape can join the clusters on either side (U+2764, ESC, VS16: 1 cell before, 2 after) | docs: the promise is limited to slicing, truncation, padding and `expand_tabs`; `strip_ansi` has its own GUIDE bullet with the example (run as a test), its docstring and the README say the stripped text can measure differently |
+| b | N1 | GUIDE: "after any other emoji a variation selector changes nothing", but VS16 widens a lone regional indicator; the "Emoji + VS16 = 2" row fails when a lone skin tone modifier starts the cluster (modifier, VS16, spacing mark: 3) | docs: the sentence is limited to VS15 and says VS16 widens every emoji, a lone regional indicator included; the table row, the GUIDE and the `grapheme_width` docstring say a cluster that a lone modifier starts adds up its code points; both cases are GUIDE examples run as tests |
+| b | N2 | "never holds a cluster that the text did not hold" false: a combining mark after a tab or control can join a new neighbour (same width) | docs: the promise is "an escape sequence or a wider cluster", as the CHANGELOG and `_join.py` already said; GUIDE and the `cell_slice` docstring say such a mark stays and joins its new neighbour at the same width; pinned in `test_cut_seams.py` |
+| c | G1 | a suffix starting with an extender (VS16, a tag, ZWJ) glued to the last kept emoji or regional indicator and widened it: `truncate_detailed` over `width`, `fit` not exact, `truncate` not idempotent | behaviour: `Joiner.fixed` applies the no-widening rule to the clusters at the start of added text, so such a cluster of the suffix is dropped; contract in `test_cut_seams.py`, and the seeded fuzz of `test_stray_escapes.py` now has VS16, tag and ZWJ suffixes and checks idempotence; CHANGELOG |
+| e | F1 (N34) | tab wholly in the left part of a middle cut, suffix placement unpinned | `test_a_middle_cut_puts_the_suffix_after_a_whole_tab_and_the_text_kept_after_it` |
+| e | F2 (N36) | zero-width cluster at the head column of a middle cut unpinned | `test_a_zero_width_cluster_at_the_middle_cut_column_goes_with_the_dropped_part` |
+| e | F3 (N23) | stray ESC inside the suffix unpinned | `test_a_stray_escape_in_the_suffix_follows_the_cell_slice_rule` |
+| e | F4 (N12) | GB11 across a cut seam unpinned | `test_a_cut_never_fuses_across_an_emoji_zwj_seam` |
+| e | F5 (N10) | regional indicator run across a seam unpinned | `test_a_cut_never_joins_two_lone_regional_indicators_into_a_flag` |
+| e | F6 (N11) | orphan mark after a multi-cluster suffix unpinned | `test_an_orphan_mark_after_a_multi_cluster_suffix_joins_its_last_letter` |
+| e | F7 (N20) | modifier-headed case of the no-fusion rule unpinned | `test_an_orphan_glued_to_a_lone_skin_tone_modifier_is_kept` |
+
+The new tests were run against the af60316 sources first: the G1 contract and the three
+seeds of the extended fuzz failed, the rest (which pin behaviour that was already right)
+passed. Each of the seven surviving mutants of lens e was then applied again, exactly as
+lens e wrote it, and `tests/test_cut_seams.py` now fails for every one, each on the test
+named above. The only behaviour change is G1, listed in the CHANGELOG.
+
+Fixes in commit 8366709. Gates at 8366709 on Elena's PC (CPython 3.14), from a fresh clone
+of the branch with the ten Unicode files fetched and wcwidth 0.9.2: `ruff format --check
+.`, `ruff check .`, `mypy --strict src`, `mypy --strict src tests scripts` and `python
+scripts/gen_ucd_tables.py --check` exit 0; `pytest` 2,751 passed, none skipped, in 61 s.
+The commit after it changes only this report.
 
 Disputed findings: none.
