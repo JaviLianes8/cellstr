@@ -26,6 +26,7 @@ def _run(cmd: list[str], stdin: bytes = b"") -> subprocess.CompletedProcess[byte
 
 
 @pytest.mark.e2e
+@pytest.mark.skipif(not (ROOT / "src").is_dir(), reason="needs the source tree to build")
 def test_wheel_installs_and_the_script_works(tmp_path: Path) -> None:
     dist = tmp_path / "dist"
     built = _run(

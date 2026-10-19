@@ -10,10 +10,13 @@ from types import ModuleType
 
 from conftest import MANIFEST, UCD, needs_ucd
 
+import cellstr
 from cellstr._props import EMOJI_BIT, EXT_PICT_BIT, GCB, MODIFIER_BIT, WIDTH_SHIFT, prop
 
 ROOT = Path(__file__).resolve().parent.parent
-PACKAGE = ROOT / "src" / "cellstr"
+# The package under test: the source tree, or the installed wheel when the tests run from
+# an unpacked sdist without src/, so the shipped tables are the ones checked.
+PACKAGE = Path(cellstr.__file__).resolve().parent
 
 
 def _generator() -> ModuleType:
