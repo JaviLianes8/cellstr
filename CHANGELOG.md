@@ -60,6 +60,9 @@ Versioning. Every change against 0.2.1 is listed below.
   space in the one cell next to the text. In 0.2.1 `rjust("️ab", 5, "#")` returned
   six cells (the last `#` and the VS16 form an emoji) and
   `ljust("👨‍", 4, "☠")` three (the skull joined the ZWJ sequence).
+  A fill whose copies join each other into a cluster of another width, such as U+2620
+  followed by a ZWJ (repeated, one two-cell ZWJ sequence), is now rejected with
+  `ValueError`; 0.2.1 accepted it and `ljust("ab", 6, "☠‍")` was four cells.
 - A middle cut gives a cell that one part cannot use, because of a wide cluster at its
   cut, to the other part: `truncate("你你你你你", 9, position="middle")` is
   `"你你...你"` (nine cells), where 0.2.1 returned `"你...你"` (seven).

@@ -86,13 +86,18 @@ def _inside(cell: Cell, start: int, limit: int, total: int, tail: bool) -> bool:
 
 
 def check_fill(fillchar: object, ambiguous: int) -> str:
-    """Return ``fillchar`` after checking it is one grapheme cluster one cell wide."""
+    """Return ``fillchar`` after checking it is one cell wide however often it is repeated."""
     fill = check_text(fillchar, "fillchar")
+    # Copies of a fill glue to each other only through the break rules that see past one
+    # cluster (a ZWJ sequence, regional indicator pairs, a conjunct, a leading mark): then
+    # the run is one cluster, or pairs, of the same shape at every length, so three copies
+    # measuring three cells means every run measures its length.
     if (
         not fill
         or "\x1b" in fill
         or next(grapheme_ends(fill)) != len(fill)
         or cluster_width(fill, ambiguous) != 1
+        or text_width(fill * 3, ambiguous) != 3
     ):
         raise ValueError(f"fillchar must be a single one-cell character, not {show(fill)}")
     return fill

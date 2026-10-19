@@ -132,7 +132,9 @@ sum(char_width(ch) for ch in strip_ansi(text))  # -> 6
   the cluster at the edge of the text into one of another width, such as `#` before an
   orphan VS16 at the start (`#` + VS16 is a two-cell emoji) or U+2620 after a ZWJ at the
   end, is a space in that one cell: `rjust("️ab", 5, "#")` is `"## ️ab"`.
-  `fit()` pads the same way.
+  A fill must stay one cell a copy however often it is repeated: U+2620 followed by a
+  ZWJ is one one-cell cluster, but its copies join into one two-cell ZWJ sequence, so it
+  raises `ValueError`. `fit()` pads the same way.
 - `truncate(..., position=...)` cuts at the end (keep the start), at the start (keep the
   end, useful for log tails) or in the middle (keep both ends, useful for paths). A
   middle cut gives the odd cell to the left part, and when a wide cluster leaves a cell

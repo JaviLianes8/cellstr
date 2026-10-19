@@ -9,6 +9,8 @@ always exactly ``width`` cells and the text is kept whole. Every vector is hand-
 
 from __future__ import annotations
 
+import pytest
+
 from cellstr import cell_len, center, fit, ljust, rjust
 
 FILLS = ["#", "*", "0", "\u2620", "\u2764", " ", "\U0001f1e6"]
@@ -58,3 +60,43 @@ def test_the_fill_seam_is_measured_with_the_ambiguous_policy() -> None:
     assert ljust("\u2194", 4, "#", ambiguous=2) == "\u2194##"
     # "#" + VS16 is a two-cell emoji presentation sequence: the left fill is a space.
     assert center("\ufe0f\u2194", 5, "#", ambiguous=2) == " \ufe0f\u2194##"
+
+
+def test_the_fill_seam_is_measured_with_the_policy_the_caller_passes() -> None:
+    # U+2194 + ZWJ + U+2764 is one cluster: 2 cells, while the parts add up to 3 under
+    # ambiguous=2 and to 2 under the default, so only the caller's policy gets these right.
+    assert ljust("↔‍", 3, "❤", ambiguous=2) == "↔‍ "
+    assert rjust("‍↔", 3, "❤", ambiguous=2) == " ‍↔"
+    assert center("↔‍", 4, "❤", ambiguous=2) == "❤↔‍ "
+
+
+def test_an_ambiguous_fill_pads_as_one_cell_under_the_default_policy() -> None:
+    assert rjust("a", 3, "·") == "··a"
+    assert center("", 4, "™") == "™" * 4
+
+
+def test_the_left_seam_is_measured_on_the_whole_run_of_fills() -> None:
+    # Regional indicator fills pair into flags, and a flag glues to a SpacingMark.
+    assert rjust("ः", 3, "🇦") == "🇦 ः"
+    assert cell_len(rjust("ः", 5, "🇦")) == 5
+    assert cell_len(center("ः", 5, "🇦")) == 5
+
+
+@pytest.mark.parametrize("fill", ["☠‍", "©‍", "❤‍"])
+def test_a_fill_that_joins_its_own_copies_is_rejected(fill: str) -> None:
+    # Repeated, the copies form one ZWJ sequence of two cells, so no width could hold.
+    for call in (
+        lambda: ljust("ab", 6, fill),
+        lambda: rjust("ab", 6, fill),
+        lambda: center("ab", 7, fill),
+        lambda: fit("ab", 6, fillchar=fill),
+    ):
+        with pytest.raises(ValueError, match="fillchar must be a single one-cell character"):
+            call()
+
+
+def test_a_fill_whose_copies_add_up_pads_to_every_width() -> None:
+    for fill in FILLS:
+        for width in range(12):
+            for pad in (ljust, rjust, center):
+                assert cell_len(pad("", width, fill)) == width, (pad.__name__, fill, width)
