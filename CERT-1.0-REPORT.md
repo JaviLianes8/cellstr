@@ -16,7 +16,8 @@ Progress:
 - [x] Packaging, e2e and every Python (items 8, 10, 13, 14)
 - [x] Gates (item 15)
 - [x] PR #4 and trace guard CLEAN
-- [ ] Five QA lenses (item 19)
+- [x] QA round 1: five lenses run, every finding fixed (see QA lenses)
+- [ ] Five QA lenses PASS on re-verification (item 19)
 - [ ] Independent review (item 16)
 
 ## Scorecard
@@ -41,7 +42,7 @@ Progress:
 | 16 | Independent reviewer | pending (next stage) |
 | 17 | PR and trace guard | PR #4 "cellstr 1.0.0" from `release/1.0.0`, trace guard CLEAN; merge and publish left to the maintainer |
 | 18 | Contracts bite (mutations) | PASS: author round of 30 mutants, 29 killed, 1 equivalent |
-| 19 | Five independent QA lenses | pending (next stage) |
+| 19 | Five independent QA lenses | round 1 run on 8380f22: 25 findings, all fixed, none disputed; re-verification by the same lenses pending |
 
 ## Baseline on 0.2.1 (before any change)
 
@@ -118,9 +119,11 @@ tool's exit status.
   both ambiguous policies, grapheme clusters on 20,000 seeded random strings, cluster
   widths on more than 50,000 random clusters and every line of emoji-test.txt; each
   difference has a documented reason and the counts are pinned.
-- Three-way: of every assigned code point known to Unicode 17.0, 296,810 get the same
-  width from `cellstr`, glibc and `wcwidth`; 497 match glibc only, 27 match `wcwidth`
-  only, none matches neither.
+- Three-way: of every assigned code point known to Unicode 17.0, with each value compared
+  as returned (-1 is not read as 0), 296,744 get the same width from `cellstr`, glibc and
+  `wcwidth`; 497 match glibc only, 29 match `wcwidth` only, and the 64 controls match
+  neither (0 here, -1 in both). Before QA round 1 this line read -1 as 0 (296,810, 497
+  and 27).
 - Kuhn's reference `wcwidth.c` (https://www.cl.cam.ac.uk/~mgk25/ucs/wcwidth.c, read on
   2026-10-18) for the single code point rules the GUIDE states. The hand-written width
   vectors in `test_contract.py` are labelled with the UCD property each comes from.
@@ -228,3 +231,50 @@ in 30 s (the wheel build and the glibc and wcwidth oracles included). The commit
 changes only this report. An earlier run at 199cc05 on the laptop failed one timing case
 (growth 9.1 times against a bound of 9 for four times the input); the scaling test was
 then widened to eight times the input with the collector paused (8ee1e4a).
+
+## QA lenses (item 19)
+
+### Round 1, on 8380f22
+
+Five independent lenses: (a) API and docs, (b) correctness and ground truth, (c)
+adversarial and robustness, (d) packaging and real e2e, (e) contract strength with its
+own mutation round. Each behaviour finding got a test that fails on 8380f22 (checked by
+running the new tests against the 8380f22 sources: 15 failed) and then a fix; each
+surviving mutant of lens e got a test, and each of the eight mutants was applied again
+and is now killed. Every behaviour change is in the CHANGELOG.
+
+| Lens | Id | Finding | Fix |
+| --- | --- | --- | --- |
+| a | A1 | GUIDE "Errors": a reversed slice is not empty (escapes kept); padding with `tabsize` expands tabs | GUIDE reworded |
+| a | A2 | README: `ambiguous=2` "to any function", but `strip_ansi` and `iter_graphemes` have none | README names the exceptions |
+| a | A3 | Three-way agreement counts read glibc's -1 as 0 | exact counts in GUIDE, `test_oracle_glibc.py` compares as returned |
+| a | A4 | CHANGELOG versions before 1.0.0 had no dates | dates from the git history |
+| a | A5 | CONTRIBUTING claimed tests never touch disk or network | accurate sentence |
+| b | F1 | VS15 narrowed every emoji, not only the listed text presentation sequences | VS15 narrows only the 371 sequences of emoji-variation-sequences.txt (a generated table bit); contract over every Emoji base, both policies, and against `wcwidth` 0.9.2 for VS15 and VS16 |
+| b | F2 | Middle cut could be two cells short with ordinary wide characters | the cell one part cannot use goes to the other; `test_truncate.py` |
+| b | F3 | "One cell short" false for clusters wider than two cells | GUIDE and docstrings: short by less than the width of the cluster at the cut; pinned with a three-cell conjunct |
+| b | F4 | 8-bit C1 introducers measured as text | documented scope (README, GUIDE, `strip_ansi` docstring): only the 7-bit forms; pinned in `test_ansi.py` |
+| b | F5 | `wcwidth` and three-way counts read -1 as 0 | exact counts (1,113,545 plus 64 controls; 296,744 / 497 / 29 / 64) in GUIDE and tests |
+| c | F1 | `strip_ansi` could leave a live sequence (not idempotent) | stray ESC removed too; result holds no ESC; fuzz checks idempotence |
+| c | F2 | Cuts glued a stray ESC to new text, creating escapes | a stray ESC is dropped when the next character in the result is printable ASCII or the result ends; unterminated `ESC P` / `ESC X` read as stray like `ESC ]`; `test_stray_escapes.py` with a seeded fuzz that the escapes out equal the escapes in (plus the suffix's) |
+| c | F3 | Tab expansion turned `ESC [` + tab into a CSI | same rule in `expand_tabs` and padding; fuzz checks `cell_len(expand_tabs(t, n)) == cell_len(t, tabsize=n)` |
+| c | F4 | A cut could fuse clusters into a wider one | an orphan zero-width cluster that would widen the cluster before it is dropped; fuzz checks `fit` is exactly the width and `truncate_detailed` within it |
+| c | F5 | `OverflowError` and `MemoryError` undocumented | GUIDE "Errors" documents them; pinned in `test_errors_contract.py` |
+| d | D1 | `hatchling` without a lower bound degrades PEP 639 metadata | `hatchling>=1.27` |
+| d | D2 | sdist lacked `requirements-dev.txt` and `scripts/check.ps1` named by CONTRIBUTING | both added to the sdist |
+| e | E1 | CSI ending in `~` unpinned | `test_csi_sequences_ending_in_a_tilde`, bracketed paste |
+| e | E2 | nF with several intermediates unpinned | `ESC $ ( B` test |
+| e | E3 | middle cut with no room for the suffix unpinned | `test_a_middle_cut_with_no_room_for_the_suffix_keeps_the_start` |
+| e | E4 | one tab spanning both sides of a middle cut unpinned | `test_a_middle_cut_through_one_tab_spanning_both_sides` |
+| e | E5 | suffix exactly filling the width unpinned | `test_a_suffix_that_fills_the_width_exactly_is_kept` |
+| e | E6 | `fit` padding under `ambiguous=2` unpinned | `test_fit_pads_ambiguous_text_with_the_ambiguous_policy` |
+| e | E7 | CLI `STOP = START - 1` unpinned | `test_slice_stop_just_before_start_is_a_usage_error` |
+| e | E8 | CLI message cap unpinned | `test_a_huge_bad_argument_gives_a_short_message` |
+
+Lens b's observations (unterminated strings as text, an interrupted CSI, a lone regional
+indicator with VS16, Old Hangul L L V, noncharacters) were noted as consistent with the
+documented policy and need no change.
+
+Fixes in commit 624971b; gates for this round below.
+
+Disputed findings: none.
