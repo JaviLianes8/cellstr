@@ -85,14 +85,11 @@ def test_the_left_seam_is_measured_on_the_whole_run_of_fills() -> None:
 @pytest.mark.parametrize("fill", ["☠‍", "©‍", "❤‍"])
 def test_a_fill_that_joins_its_own_copies_is_rejected(fill: str) -> None:
     # Repeated, the copies form one ZWJ sequence of two cells, so no width could hold.
-    for call in (
-        lambda: ljust("ab", 6, fill),
-        lambda: rjust("ab", 6, fill),
-        lambda: center("ab", 7, fill),
-        lambda: fit("ab", 6, fillchar=fill),
-    ):
+    for pad in (ljust, rjust, center):
         with pytest.raises(ValueError, match="fillchar must be a single one-cell character"):
-            call()
+            pad("ab", 6, fill)
+    with pytest.raises(ValueError, match="fillchar must be a single one-cell character"):
+        fit("ab", 6, fillchar=fill)
 
 
 def test_a_fill_whose_copies_add_up_pads_to_every_width() -> None:

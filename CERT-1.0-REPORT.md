@@ -20,6 +20,7 @@ Progress:
 - [x] QA round 2: round 1 confirmed fixed, eleven new findings fixed, none disputed (8366709)
 - [x] QA round 3: round 2 confirmed fixed, thirteen new findings fixed, none disputed (c0d8725)
 - [x] QA round 4: round 3 confirmed fixed, five new findings fixed, none disputed (2dc700f)
+- [x] QA round 5: round 4 confirmed fixed, one new finding and six surviving mutants fixed, none disputed
 - [ ] Five QA lenses PASS on re-verification (item 19)
 - [ ] Independent review (item 16)
 
@@ -45,7 +46,7 @@ Progress:
 | 16 | Independent reviewer | pending (next stage) |
 | 17 | PR and trace guard | PR #4 "cellstr 1.0.0" from `release/1.0.0`, trace guard CLEAN; merge and publish left to the maintainer |
 | 18 | Contracts bite (mutations) | PASS: author round of 30 mutants, 29 killed, 1 equivalent |
-| 19 | Five independent QA lenses | round 1 on 8380f22: 25 findings, all fixed; round 2 on af60316: round 1 confirmed, 11 new findings, all fixed in 8366709, none disputed; round 3 on 0ca1732: 13 new findings, all fixed in c0d8725; round 4 on e057b96: 5 new findings, all fixed in 2dc700f, none disputed; re-verification pending |
+| 19 | Five independent QA lenses | round 1 on 8380f22: 25 findings, all fixed; round 2 on af60316: round 1 confirmed, 11 new findings, all fixed in 8366709, none disputed; round 3 on 0ca1732: 13 new findings, all fixed in c0d8725; round 4 on e057b96: 5 new findings, all fixed in 2dc700f, none disputed; round 5 on 564953c: 1 new finding and 6 surviving mutants, all fixed, none disputed; re-verification pending |
 
 ## Baseline on 0.2.1 (before any change)
 
@@ -409,5 +410,39 @@ manifest) and wcwidth 0.9.2, pytest-timeout 300 s: `ruff format --check .`, `ruf
 scripts/gen_ucd_tables.py --check` exit 0; `pytest` 2,774 passed in 53 s. The commit
 after it changes only this report and one docstring word ("before" an orphan at the
 start of the text).
+
+Disputed findings: none.
+
+### Round 5, on 564953c
+
+Lenses b and e re-ran their round 4 findings on 564953c: N4 is fixed (lens b, with
+`regex` 2025.11.3 `\X` as an independent segmenter) and S16, S29, S32 and S38 are killed
+(lens e). Lens b's 41 probes of `_pad` found one new gap, and lens e's 34 mutants of
+`_pad`, `_prepare`, `ljust`, `rjust` and `center` left nine survivors (25 killed):
+
+| Lens | Id | Finding | Fix |
+| --- | --- | --- | --- |
+| b | N5 | `check_fill` accepted a one-cell cluster whose copies join each other: U+2620, U+00A9 or U+2764 followed by a ZWJ is one cluster of one cell, but repeated it forms one ZWJ sequence of two cells, so `ljust("ab", 6, "☠‍")` was 4 cells (also 4 in 0.2.1) | behaviour: `check_fill` also requires three copies to measure three cells, so such a fill raises `ValueError`; CHANGELOG, GUIDE and the `check_fill` comment say why three copies settle every length |
+| e | P8 | the left seam measured with ambiguous=2 survived | pinned: `rjust("a", 3, "·")` and `center("", 4, "™")` under the default policy |
+| e | P25, P30, P31, P32 | `_pad` given ambiguous=1 instead of the caller's policy survived (through `_prepare` and in each of `ljust`, `rjust`, `center`) | pinned: U+2194, ZWJ with a U+2764 fill under ambiguous=2 (one two-cell cluster where the parts add up to 3) on both sides and centred |
+| e | P34 | the left seam checked on one fill plus the text instead of the whole fill run survived | pinned: `rjust("ः", 3, "🇦")` is `"🇦 ः"` (two regional indicators pair into a flag that glues to the spacing mark), and 5 cells for `rjust` and `center` to 5 |
+| e | P4, P17, P33 | not killed | equivalent: P4 drops `left and` from the left check, which with no left fill compares the body with its own width; P17 replaces the right check with "narrower than", but a fill glued at the end of the text only ever measures the sum (a spacing mark, a regional indicator after a lone one) or less (the end of a ZWJ sequence), since the extender fills that could widen it (VS16, a skin tone modifier, a tag) measure 0 alone and are rejected; P33 measures the right seam on the body instead of the padded head, which differs only if the fill run changes width, which `check_fill` now excludes. Lens e's seeded pad fuzz of about 490,000 cases found no input where these three differ from the code |
+
+The three N5 tests (`tests/test_pad_seams.py`, one per fill) were run against the
+564953c sources first: all three failed, the other new tests passed (they pin values the
+code already gave). Each of P8, P25, P30, P31, P32 and P34, applied to the fixed sources
+exactly as lens e wrote it, fails `tests/test_pad_seams.py`, and so do the new check
+removed and the new check with two copies instead of three (two skull and ZWJ copies
+happen to measure 2). The three copies rule was then checked exhaustively on Elena's PC:
+every code point from U+0020 to U+1FFFF and the tag block, alone and followed by each of
+ZWJ, VS16, U+0301, U+094D, U+0903, a skin tone modifier and a tag letter, under both
+ambiguous policies. 841,536 fills were accepted, and for every one 1 to 9 copies measure
+their count and `ljust`, `rjust` and `center` of six seam-prone texts to 3, 6 and 7 cells
+measure exactly the width: no failure.
+
+Gates on Elena's PC (CPython 3.14), from a fresh clone of the branch with the ten
+Unicode files, pytest-timeout 300 s: `ruff format --check .`, `ruff check .`, `mypy
+--strict src`, `mypy --strict src tests scripts` and `python scripts/gen_ucd_tables.py
+--check` exit 0; `pytest` GATES_PLACEHOLDER.
 
 Disputed findings: none.
