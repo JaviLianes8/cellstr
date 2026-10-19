@@ -114,8 +114,11 @@ def test_every_known_code_point_agrees_with_glibc_or_with_wcwidth() -> None:
     for cp, version in age.items():
         if version == "18.0" or gc.get(cp, "Cn") in ("Cn", "Cs"):
             continue
+        # The values compared as returned: -1 (not printable) is not read as 0.
         ours = char_width(chr(cp))
-        with_glibc = ours == max(0, glibc[cp])
-        with_wcwidth = ours == max(0, wcwidth.wcwidth(chr(cp)))
+        with_glibc = ours == glibc[cp]
+        with_wcwidth = ours == wcwidth.wcwidth(chr(cp))
         agreement[("neither", "wcwidth", "glibc", "both")[2 * with_glibc + with_wcwidth]] += 1
-    assert agreement == {"both": 296_810, "glibc": 497, "wcwidth": 27}
+    # neither: the 64 controls, -1 in both; wcwidth only: 19 Cf, 8 East Asian Ambiguous,
+    # U+2028 and U+2029; glibc only: 471 spacing marks and 26 regional indicators.
+    assert agreement == {"both": 296_744, "glibc": 497, "wcwidth": 29, "neither": 64}

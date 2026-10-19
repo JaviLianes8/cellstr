@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
@@ -54,6 +54,8 @@ include = [
     "scripts/gen_ucd_tables.py",
     "scripts/fetch_upstream.py",
     "scripts/capture_glibc.py",
+    "scripts/check.ps1",
+    "requirements-dev.txt",
     "data/ucd/MANIFEST.json",
     "CHANGELOG.md",
     "CONTRIBUTING.md",

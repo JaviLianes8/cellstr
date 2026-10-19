@@ -108,3 +108,32 @@ def test_text_presentation_examples() -> None:
     assert (grapheme_width(trade_mark), grapheme_width(trade_mark, ambiguous=2)) == (1, 2)
     assert (grapheme_width(watch), grapheme_width(watch, ambiguous=2)) == (1, 1)
     assert cell_len("™️", ambiguous=2) == cell_len("⌚️") == 2
+
+
+def _emoji_bases() -> set[int]:
+    bases: set[int] = set()
+    for raw in (UCD / "emoji-data.txt").read_text(encoding="utf-8").splitlines():
+        data = raw.split("#", 1)[0]
+        if ";" in data and data.split(";")[1].strip() == "Emoji":
+            low, _, high = data.split(";")[0].strip().partition("..")
+            bases.update(range(int(low, 16), int(high or low, 16) + 1))
+    return bases
+
+
+@pytest.mark.parametrize("ambiguous", [1, 2])
+def test_vs15_narrows_only_a_listed_text_presentation_sequence(ambiguous: int) -> None:
+    # UTS #51 ED-8a: the only text presentation sequences are those the file lists; any
+    # other variation selector after an emoji leaves the base as it is.
+    listed = {text[0] for text, style in _rows("emoji-variation-sequences.txt")}
+    eaw = _east_asian_width()
+    kinds: Counter[str] = Counter()
+    for cp in _emoji_bases():
+        base = chr(cp)
+        width = grapheme_width(base + "\ufe0e", ambiguous=ambiguous)
+        if base in listed:
+            assert width == (ambiguous if eaw[cp] == "A" else 1), hex(cp)
+            kinds["listed"] += 1
+        else:
+            assert width == char_width(base, ambiguous=ambiguous), hex(cp)
+            kinds["not listed"] += 1
+    assert kinds == {"listed": 371, "not listed": 1076}

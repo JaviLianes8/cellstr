@@ -100,6 +100,12 @@ def test_ambiguous_emoji_with_vs16_is_wide_under_both_policies() -> None:
     assert grapheme_width("\u2660") == 1 and grapheme_width("\u2660", ambiguous=2) == 2
 
 
+def test_vs15_after_an_emoji_with_no_text_sequence_changes_nothing() -> None:
+    assert cell_len("\U0001f600\ufe0e") == cell_len("\U0001f9b0\ufe0e") == 2
+    assert cell_len("\U0001f3fb\ufe0e") == 2
+    assert cell_len("\u231a\ufe0e") == 1  # WATCH has a listed text presentation sequence
+
+
 def test_strings_sum_their_clusters() -> None:
     text = f"a{FAMILY}b{SPAIN}\u4f60e\u0301"
     assert cell_len(text) == 1 + 2 + 1 + 2 + 2 + 1

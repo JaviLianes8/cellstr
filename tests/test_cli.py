@@ -79,6 +79,23 @@ def test_usage_errors_go_to_stderr_with_status_two() -> None:
         assert done.stdout == b"" and b"error" in done.stderr, args
 
 
+def test_slice_stop_just_before_start_is_a_usage_error() -> None:
+    done = run("slice", "3", "2", stdin=b"abcdef\n")
+    assert (done.returncode, done.stdout) == (2, b"")
+    assert done.stderr.decode().splitlines()[-1] == (
+        "cellstr slice: error: STOP (2) must not be less than START (3)"
+    )
+    assert run("slice", "3", "3", stdin=b"abcdef\n").stdout == b"\n"
+
+
+def test_a_huge_bad_argument_gives_a_short_message() -> None:
+    done = run("truncate", "5", "--position", "x" * 1000, stdin=b"abc\n")
+    assert done.returncode == 2
+    message = done.stderr.decode().splitlines()[-1]
+    assert message.startswith("cellstr truncate: error: ") and len(message) <= 230
+    assert message.endswith("...")
+
+
 def test_unreadable_input_is_status_one() -> None:
     bad = run("measure", stdin=b"ok\n\xff\n")
     assert (bad.returncode, bad.stdout) == (1, b"")

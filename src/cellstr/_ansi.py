@@ -14,16 +14,17 @@ from ._args import check_text
 #   strings ESC P / X / ^ / _ ... ST                DCS, SOS, PM, APC
 #   nF      ESC intermediates final                 charset designation such as ESC ( B
 #   Fp/Fe/Fs ESC one final byte                     ESC 7, ESC 8, ESC =, ESC c, ESC M
-# An unterminated OSC or string sequence is never swallowed to the end of the text: at most
-# its introducer counts as an escape and the rest is measured as text, so nothing visible
-# silently disappears.
+# An unterminated OSC or string sequence is never swallowed to the end of the text: its ESC
+# is a stray ESC, a zero-width control, and the rest is measured as text, so nothing visible
+# silently disappears. Only the 7-bit forms are recognised: the 8-bit C1 introducers such as
+# U+009B are zero-width controls and what follows them is text.
 _ANSI_RE = re.compile(
     r"\x1b(?:"
     r"\[[0-?]*[ -/]*[@-~]"
     r"|\][^\x07\x1b]*(?:\x07|\x1b\\)"
     r"|[PX^_][^\x1b]*\x1b\\"
     r"|[ -/]+[0-~]"
-    r"|[0-Z\\`-~]"
+    r"|[0-OQ-WYZ\\`-~]"
     r")"
 )
 
@@ -31,15 +32,17 @@ _ANSI_RE = re.compile(
 def strip_ansi(text: str) -> str:
     """Return ``text`` with every ANSI escape sequence removed.
 
-    Recognised: CSI sequences (SGR colours and styles, cursor movement), OSC sequences
-    ended by BEL or ST (window titles, OSC 8 hyperlinks), DCS, SOS, PM and APC strings,
-    charset designations and the single-byte escapes. A string sequence with no
-    terminator is never swallowed: the text after its introducer is kept.
+    Recognised, in their 7-bit form: CSI sequences (SGR colours and styles, cursor
+    movement), OSC sequences ended by BEL or ST (window titles, OSC 8 hyperlinks), DCS,
+    SOS, PM and APC strings, charset designations and the single-byte escapes. A string
+    sequence with no terminator is never swallowed: the text after its ESC is kept. A
+    stray ESC, one that starts no complete sequence, is removed too, so the result holds
+    no ESC at all and stripping it again changes nothing.
 
     >>> strip_ansi("\\x1b[1;31merror\\x1b[0m: \\x1b]8;;https://example.com\\x07docs\\x1b]8;;\\x07")
     'error: docs'
     """
-    return _ANSI_RE.sub("", check_text(text))
+    return _ANSI_RE.sub("", check_text(text)).replace("\x1b", "")
 
 
 class Segment(NamedTuple):

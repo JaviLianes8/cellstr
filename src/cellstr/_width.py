@@ -5,7 +5,16 @@ from __future__ import annotations
 from ._ansi import segments
 from ._args import check_ambiguous, check_text, show
 from ._graphemes import grapheme_ends
-from ._props import AMBIGUOUS, EMOJI_BIT, EXT_PICT_BIT, GCB, MODIFIER_BIT, WIDTH_SHIFT, prop
+from ._props import (
+    AMBIGUOUS,
+    EMOJI_BIT,
+    EXT_PICT_BIT,
+    GCB,
+    MODIFIER_BIT,
+    TEXT_VS_BIT,
+    WIDTH_SHIFT,
+    prop,
+)
 
 _RI = GCB["Regional_Indicator"]
 _VS15 = "\ufe0e"
@@ -16,7 +25,7 @@ _TAGS = range(0xE0020, 0xE0080)
 
 def code_width(code: int, ambiguous: int) -> int:
     """Width of a code point from its packed property code."""
-    width = code >> WIDTH_SHIFT
+    width = (code >> WIDTH_SHIFT) & 0x03
     return ambiguous if width == AMBIGUOUS else width
 
 
@@ -61,12 +70,13 @@ def cluster_width(cluster: str, ambiguous: int) -> int:
         return code_width(code, ambiguous)
     rest = cluster[1:]
     if code & (EMOJI_BIT | EXT_PICT_BIT) and not code & MODIFIER_BIT:
-        # A variation selector only counts right after the base. Text presentation narrows
-        # a wide emoji to one cell but leaves an ambiguous one to the ambiguous policy.
-        if code & EMOJI_BIT and rest[0] in (_VS15, _VS16):
-            if rest[0] == _VS16:
-                return 2
-            return ambiguous if code >> WIDTH_SHIFT == AMBIGUOUS else 1
+        # A variation selector only counts right after the base. VS15 narrows an emoji only
+        # in a listed text presentation sequence (UTS #51 ED-8a), and leaves an ambiguous
+        # one to the ambiguous policy; after any other emoji it changes nothing.
+        if code & EMOJI_BIT and rest[0] == _VS16:
+            return 2
+        if code & TEXT_VS_BIT and rest[0] == _VS15:
+            return ambiguous if (code >> WIDTH_SHIFT) & 0x03 == AMBIGUOUS else 1
         if _emoji_sequence(rest):
             return 2
     if code & 0x0F == _RI and prop(ord(rest[0])) & 0x0F == _RI:
@@ -80,10 +90,11 @@ def grapheme_width(cluster: str, *, ambiguous: int = 1) -> int:
     ``cluster`` must be exactly one cluster, such as an item from ``iter_graphemes``.
     Emoji sequences draw as a single glyph: an emoji followed by VS16 (U+FE0F), a skin
     tone modifier, a ZWJ sequence, a tag sequence or a pair of regional indicators (a
-    flag) is two cells, and an emoji followed by VS15 (U+FE0E) is one (``ambiguous``
-    when the emoji is East Asian Ambiguous). Any other cluster is the sum of its code
-    points, which keeps combining marks at zero and conjoining Hangul jamo at the width
-    of the syllable.
+    flag) is two cells. An emoji followed by VS15 (U+FE0E) is one cell (``ambiguous`` when
+    the emoji is East Asian Ambiguous) if emoji-variation-sequences.txt lists that text
+    presentation sequence; after any other emoji VS15 changes nothing. Any other cluster
+    is the sum of its code points, which keeps combining marks at zero and conjoining
+    Hangul jamo at the width of the syllable.
 
     >>> grapheme_width("\\U0001f468\\u200d\\U0001f469\\u200d\\U0001f467")
     2

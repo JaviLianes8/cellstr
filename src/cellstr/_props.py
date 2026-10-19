@@ -11,6 +11,7 @@ from ._ucd_data import (
     INCB_SHIFT,
     MODIFIER_BIT,
     RUNS,
+    TEXT_VS_BIT,
     UNICODE_VERSION,
     WIDTH_SHIFT,
 )
@@ -22,6 +23,7 @@ __all__ = [
     "GCB",
     "INCB_SHIFT",
     "MODIFIER_BIT",
+    "TEXT_VS_BIT",
     "UNICODE_VERSION",
     "WIDTH_SHIFT",
     "prop",
@@ -54,7 +56,8 @@ def prop(cp: int) -> int:
 
     Bits 0-3 hold Grapheme_Cluster_Break (an index into ``GCB_NAMES``), bit 4 is
     Extended_Pictographic, bits 5-6 Indic_Conjunct_Break, bit 7 Emoji, bit 8
-    Emoji_Modifier and bits 9-10 the width class (0 zero, 1 narrow, 2 wide, 3 ambiguous).
+    Emoji_Modifier, bits 9-10 the width class (0 zero, 1 narrow, 2 wide, 3 ambiguous) and
+    bit 11 tells that the code point followed by VS15 is a listed text presentation sequence.
     """
     if cp < 0x300:
         return _LATIN[cp]

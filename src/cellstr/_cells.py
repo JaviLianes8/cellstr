@@ -8,6 +8,7 @@ from typing import NamedTuple
 from ._ansi import segments
 from ._args import check_ambiguous, check_positive, check_tabsize, check_text
 from ._graphemes import grapheme_ends
+from ._join import Joiner
 from ._width import cluster_width, text_width
 
 _LINE_BREAKS = frozenset({"\n", "\r", "\r\n"})
@@ -101,7 +102,8 @@ def expand_tabs(text: str, tabsize: int = 8, *, ambiguous: int = 1) -> str:
 
     Unlike ``str.expandtabs`` the columns are display cells, so wide characters, emoji
     and escape sequences before a tab do not throw it off. Escapes are kept in place;
-    a CR or LF starts a new line, as in ``str.expandtabs``.
+    a stray ESC goes as in ``cell_slice``, so the spaces never extend it into a new
+    sequence. A CR or LF starts a new line, as in ``str.expandtabs``.
 
     >>> expand_tabs("\\u4f60\\tx", 4) == "\\u4f60  x"
     True
@@ -111,14 +113,28 @@ def expand_tabs(text: str, tabsize: int = 8, *, ambiguous: int = 1) -> str:
     return expand(text, size, check_ambiguous(ambiguous))
 
 
-def expand(text: str, tabsize: int, ambiguous: int) -> str:
-    """``expand_tabs`` for arguments that are already checked."""
-    if "\t" not in text:
+def has_stray(text: str) -> bool:
+    """True when ``text`` holds an ESC that starts no complete escape sequence."""
+    return "\x1b" in text and any("\x1b" in s.text for s in segments(text) if not s.is_escape)
+
+
+def expand(text: str, tabsize: int | None, ambiguous: int) -> str:
+    """``expand_tabs`` for arguments that are already checked; ``None`` expands no tab.
+
+    The text is rebuilt (see ``Joiner``) whenever a tab or a stray ESC is in it, so the
+    result never holds an escape sequence or a wider cluster that the text did not hold.
+    """
+    if not ((tabsize is not None and "\t" in text) or has_stray(text)):
         return text
-    return "".join(
-        " " * cell.width if cell.text == "\t" and not cell.escape else cell.text
-        for cell in cells(text, ambiguous, tabsize)
-    )
+    out = Joiner(ambiguous)
+    for cell in cells(text, ambiguous, tabsize):
+        if cell.escape:
+            out.escape(cell.text)
+        elif tabsize is not None and cell.text == "\t":
+            out.fixed(" " * cell.width)
+        else:
+            out.cluster(cell.text, cell.width)
+    return out.text()
 
 
 def total_width(cells: list[Cell]) -> int:

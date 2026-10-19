@@ -166,3 +166,11 @@ def test_records_pickle_under_the_public_module() -> None:
 def test_the_package_exports_nothing_else() -> None:
     public = {name for name in vars(cellstr) if not name.startswith("_")}
     assert public == set(cellstr.__all__)
+
+
+def test_a_result_too_large_to_build_raises_overflow_error() -> None:
+    # Documented in GUIDE.md "Errors": the same error str.ljust and str.expandtabs raise.
+    with pytest.raises(OverflowError):
+        cellstr.ljust("a", 10**20)
+    with pytest.raises(OverflowError):
+        cellstr.expand_tabs("\t", 10**20)

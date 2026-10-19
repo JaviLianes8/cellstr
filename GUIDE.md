@@ -43,7 +43,7 @@ single glyph:
 | Cluster | Example | Cells |
 | --- | --- | --- |
 | Emoji + VS16 (U+FE0F, emoji presentation) | ❤️ | 2 |
-| Emoji + VS15 (U+FE0E, text presentation) | ⌚︎ | 1, or `ambiguous` for an East Asian Ambiguous emoji such as ™︎ |
+| Emoji + VS15 (U+FE0E, text presentation), for the 371 sequences emoji-variation-sequences.txt lists | ⌚︎ | 1, or `ambiguous` for an East Asian Ambiguous emoji such as ™︎ |
 | Emoji modifier sequence (skin tone) | 👍🏽 | 2 |
 | Emoji ZWJ sequence | 👨‍👩‍👧 | 2 |
 | Emoji tag sequence (subdivision flag) | 🏴󠁧󠁢󠁳󠁣󠁴󠁿 | 2 |
@@ -89,9 +89,13 @@ terminal works per code point, measure with the recipe below.
 
 **Variation selectors.** VS16 asks for emoji presentation. Terminals that ignore it keep
 a text-default symbol such as U+2764 at one cell and let the colour glyph overflow into
-the next cell; `cellstr` measures two. VS15 asks for text presentation: `cellstr`
-measures one cell (the `ambiguous` width for an East Asian Ambiguous emoji such as ™),
-as the `wcwidth` package 0.9.2 does, while terminals that ignore it keep a wide emoji at two.
+the next cell; `cellstr` measures two. VS15 asks for text presentation, and Unicode lists
+the emoji that have one (emoji-variation-sequences.txt; UTS #51 ED-8a). For those,
+`cellstr` measures one cell (the `ambiguous` width for an East Asian Ambiguous emoji such
+as ™), while terminals that ignore VS15 keep a wide emoji at two. After any other emoji,
+such as U+1F600 😀, a variation selector is not sanctioned and changes nothing, so 😀︎
+stays two cells. The `wcwidth` package 0.9.2 gives the same width for every emoji
+followed by VS15 or VS16, except a lone regional indicator (see below).
 
 **Spacing marks.** Vowel signs in Indic scripts such as U+093F are spacing marks (Mc).
 Kuhn's reference and glibc give them one cell (only Mn, Me and Cf are zero there); the
@@ -113,15 +117,29 @@ sum(char_width(ch) for ch in strip_ansi(text))  # -> 6
 
 - `cell_slice(text, start, stop)` keeps the clusters that sit fully inside the half-open
   column range. A wide cluster cut by either edge is dropped whole, so the result can be
-  one cell short; `fit()` pads that cell back. Every escape sequence is kept, so a
-  hyperlink or colour that opens before the range still closes after it.
+  short by less than the width of that cluster: one cell for a CJK character, two for a
+  three-cell conjunct such as क्षि. `fit()` pads the missing cells back. Every escape
+  sequence is kept, so a hyperlink or colour that opens before the range still closes
+  after it.
 - `ljust`, `rjust` and `center` pad with a one-cell fill character and never shorten text.
 - `truncate(..., position=...)` cuts at the end (keep the start), at the start (keep the
-  end, useful for log tails) or in the middle (keep both ends, useful for paths).
-  `truncate_detailed` returns a `Truncation` with the result, its width, the original
-  width and whether anything was cut.
+  end, useful for log tails) or in the middle (keep both ends, useful for paths). A
+  middle cut gives the odd cell to the left part, and when a wide cluster leaves a cell
+  of one part unused, the other part takes it. `truncate_detailed` returns a
+  `Truncation` with the result, its width, the original width and whether anything was
+  cut.
 - With `tabsize` set, tabs advance to the next tab stop, counted from the start of the
   line, and become spaces in slices and padded output so the layout does not shift.
+- A result never holds an escape sequence or a cluster that the text did not hold. A
+  stray ESC, one that starts no complete sequence (such as the ESC of an unterminated
+  `ESC ]` or `ESC [`), is a zero-width control; slicing, truncation, padding and
+  `expand_tabs` drop it when the next character in the result is printable ASCII, which
+  could otherwise extend it into a new sequence. A zero-width cluster left alone by a cut,
+  such as VS16 or a tag character, is dropped when the cut would glue it to an emoji and
+  widen it. `strip_ansi` removes every stray ESC.
+- Only the 7-bit escape forms are recognised. The 8-bit C1 introducers (U+009B CSI,
+  U+009D OSC, U+0090 DCS and the rest) are zero-width controls, and the text after them
+  is measured and kept as text.
 
 ```python
 from cellstr import cell_slice, fit, truncate
@@ -136,7 +154,7 @@ fit("\x1b[1mok\x1b[0m", 4, align="center")  # -> " \x1b[1mok\x1b[0m "
 ## Errors
 
 Every function checks its arguments when it is called, the generators `iter_graphemes`
-and `iter_cells` included, and raises only the built-in exceptions:
+and `iter_cells` included, and raises these built-in exceptions for a bad argument:
 
 - `TypeError` for an argument of the wrong type: text that is not a `str`, a width,
   column, `ambiguous` or `tabsize` that is not an integer (`bool` and `float` are
@@ -147,11 +165,16 @@ and `iter_cells` included, and raises only the built-in exceptions:
   character, a suffix with a tab or a line break, or a `char_width` or `grapheme_width`
   argument that is not exactly one code point or one cluster.
 
-Padding to a width at or below the text's width returns the text unchanged, as
-`str.ljust` does, and a slice whose stop is before its start is empty. Messages name the
-argument and quote at most 40 characters of its value, so a huge or hostile argument
-never produces a huge message. A `str` subclass is read as a plain `str` and every
-result is an exact `str`.
+A valid width or tab size so large that the result cannot be built raises
+`OverflowError` or `MemoryError`, as `str.ljust` and `str.expandtabs` do: for example
+`ljust("a", 10**20)` or `expand_tabs("\t", 10**20)`.
+
+Padding to a width at or below the text's width adds nothing, as `str.ljust` does: the
+text comes back unchanged, except that with `tabsize` its tabs are expanded and that a
+stray ESC is dropped as described above. A slice whose stop is before its start holds no
+printable text; it keeps the escape sequences. Messages name the argument and quote at
+most 40 characters of its value, so a huge or hostile argument never produces a huge
+message. A `str` subclass is read as a plain `str` and every result is an exact `str`.
 
 ```python
 from cellstr import cell_len, truncate
@@ -192,18 +215,22 @@ knows Unicode 17.0, so the 13,007 code points new in 18.0 are left out. Of the r
 | East Asian Ambiguous: 1 here (the default policy), 2 in glibc | 8 |
 
 **The `wcwidth` package 0.9.2** (`tests/test_oracle_wcwidth.py`), released 2026-10-05
-on the same Unicode 18.0.0 data. With either ambiguous policy, 1,113,609 code points
-agree; the other 503 are the 477 spacing marks (Mc, see above) and the 26 regional
-indicators, which are one cell alone here (East_Asian_Width N) and two in `wcwidth`.
+on the same Unicode 18.0.0 data. With either ambiguous policy, 1,113,545 code points
+get the same value from `wcwidth.wcwidth()`. The 64 controls are 0 here and -1 (not
+printable) there, and the other 503 are the 477 spacing marks (Mc, see above) and the 26
+regional indicators, which are one cell alone here (East_Asian_Width N) and two in
+`wcwidth`.
 Grapheme clusters are identical on 20,000 random strings, and cluster widths agree on
 more than 50,000 random clusters free of those two cases. In emoji-test.txt the only
 other difference is an emoji sequence whose first code point is a one-cell emoji not
 followed by VS16, such as 🖐🏻 or an unqualified ZWJ sequence: two cells here, because
 it draws as one emoji glyph, one cell in `wcwidth` (99 of the 5,244 lines).
 
-Of every assigned code point known to Unicode 17.0, 296,810 get the same width from
-`cellstr`, glibc and `wcwidth`, 497 match glibc only and 27 match `wcwidth` only; none
-matches neither.
+Of every assigned code point known to Unicode 17.0, comparing the values exactly as each
+returns them (so -1 is not read as 0): 296,744 get the same width from `cellstr`, glibc
+and `wcwidth`; 497 match glibc only (471 spacing marks, 26 regional indicators); 29 match
+`wcwidth` only (19 format characters, 8 East Asian Ambiguous, U+2028 and U+2029); and the
+64 controls match neither, being 0 here and -1 in both.
 
 ## Unicode data
 

@@ -31,6 +31,26 @@ Versioning. Every change against 0.2.1 is listed below.
   U+115F HANGUL CHOSEONG FILLER stays 2.
 - An East Asian Ambiguous emoji followed by VS15 (text presentation), such as ™︎, takes
   the `ambiguous` width instead of always one cell.
+- VS15 narrows an emoji only in a text presentation sequence that
+  emoji-variation-sequences.txt lists (UTS #51 ED-8a); after any other emoji it changes
+  nothing, as Unicode says of a variation selector it does not sanction. U+1F600
+  followed by VS15 is two cells, as in the `wcwidth` package 0.9.2 (it was one).
+- `strip_ansi` also removes a stray ESC, one that starts no complete escape sequence, so
+  its result holds no ESC and stripping it again changes nothing. In 0.2.1
+  `strip_ansi("\x1b\x1b[0m[31mred")` returned the live sequence `"\x1b[31mred"`.
+- An unterminated `ESC P` or `ESC X` string is read like an unterminated `ESC ]`, `ESC ^`
+  or `ESC _`: only its ESC is a zero-width control and the letter after it counts as
+  text (it was hidden as a two-character escape).
+- `cell_slice`, `truncate`, `truncate_detailed`, `fit`, `ljust`, `rjust`, `center` and
+  `expand_tabs` never return an escape sequence or a wider cluster that the input did not
+  hold. A stray ESC is dropped where the result ends with it or goes on with printable
+  ASCII, and a zero-width cluster that a cut would glue to an emoji, widening it, is
+  dropped. In 0.2.1 `truncate("\x1b你abc", 2, "~")` returned `"\x1b~"` (an escape
+  sequence, zero cells), `expand_tabs("\x1b[\t~", 4)` a CSI sequence, and a middle cut
+  of `"❤\xad\U000e0067"` to one cell a two-cell emoji.
+- A middle cut gives a cell that one part cannot use, because of a wide cluster at its
+  cut, to the other part: `truncate("你你你你你", 9, position="middle")` is
+  `"你你...你"` (nine cells), where 0.2.1 returned `"你...你"` (seven).
 - `truncate`, `truncate_detailed` and `fit` with `tabsize` measure tabs at their stops
   and turn into spaces only the tabs that are kept, so the work no longer grows with the
   tab size.
@@ -47,6 +67,9 @@ Versioning. Every change against 0.2.1 is listed below.
 ### Added
 
 - GUIDE sections "Errors" and "Differences from other measurers".
+- Documentation of the 7-bit scope of escape recognition (the 8-bit C1 introducers
+  are zero-width controls) and of `OverflowError` and `MemoryError` for a result too
+  large to build.
 - Cross-checks of every code point against the real output of glibc 2.43 `wcwidth()`
   (`tests/fixtures/glibc-wcwidth.txt`, captured by `scripts/capture_glibc.py`) and
   against the `wcwidth` package 0.9.2, and tests over every line of the official
@@ -59,7 +82,7 @@ Versioning. Every change against 0.2.1 is listed below.
 
 - The `wcwidth` 0.2.13 oracle and the pinned Unicode 15.1.0 EastAsianWidth.txt it needed.
 
-## [0.2.1]
+## [0.2.1] - 2026-10-13
 
 ### Changed
 
@@ -70,7 +93,7 @@ Versioning. Every change against 0.2.1 is listed below.
   generated tables stay in the package and the Unicode licence notice ships in the wheel.
 - The sdist ships only the sources, tests, scripts and docs.
 
-## [0.2.0]
+## [0.2.0] - 2026-10-12
 
 ### Added
 
@@ -99,7 +122,7 @@ Versioning. Every change against 0.2.1 is listed below.
 - `cell_slice` never splits a grapheme cluster, so accents stay on their letter.
 - `ljust`, `rjust` and `center` accept any one-cell grapheme cluster as the fill.
 
-## [0.1.0]
+## [0.1.0] - 2026-10-11
 
 - First release: `cell_len`, `char_width`, `cell_slice`, `ljust`, `rjust`,
   `center`, `truncate` and `strip_ansi`, with a vendored Unicode width table and

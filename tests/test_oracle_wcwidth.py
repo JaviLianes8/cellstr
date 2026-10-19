@@ -51,16 +51,45 @@ def test_every_code_point_agrees_or_has_a_documented_reason(ambiguous: int) -> N
     reasons: Counter[str] = Counter()
     for cp in range(0x110000):
         ours = char_width(chr(cp), ambiguous=ambiguous)
-        theirs = max(0, wcwidth.wcwidth(chr(cp), ambiguous_width=ambiguous))
+        theirs = wcwidth.wcwidth(chr(cp), ambiguous_width=ambiguous)
         if ours == theirs:
             reasons["agree"] += 1
+        elif theirs == -1 and ours == 0 and (cp < 0x20 or 0x7F <= cp < 0xA0):
+            reasons["control: 0 here, -1 (not printable) in wcwidth"] += 1
         elif cp in marks and theirs == 0:
             reasons["spacing mark"] += 1
         elif cp in REGIONAL and (ours, theirs) == (1, 2):
             reasons["lone regional indicator"] += 1
         else:
             reasons[f"unexplained {cp:04X}"] += 1
-    assert reasons == {"agree": 1_113_609, "spacing mark": 477, "lone regional indicator": 26}
+    assert reasons == {
+        "agree": 1_113_545,
+        "control: 0 here, -1 (not printable) in wcwidth": 64,
+        "spacing mark": 477,
+        "lone regional indicator": 26,
+    }
+
+
+@pytest.mark.parametrize("ambiguous", [1, 2])
+def test_every_emoji_with_a_variation_selector_agrees(ambiguous: int) -> None:
+    emoji: set[int] = set()
+    for raw in (UCD / "emoji-data.txt").read_text(encoding="utf-8").splitlines():
+        data = raw.split("#", 1)[0]
+        if ";" in data and data.split(";")[1].strip() == "Emoji":
+            low, _, high = data.split(";")[0].strip().partition("..")
+            emoji.update(range(int(low, 16), int(high or low, 16) + 1))
+    outcome: Counter[str] = Counter()
+    for cp in emoji:
+        for selector in ("\ufe0e", "\ufe0f"):
+            text = chr(cp) + selector
+            ours = grapheme_width(text, ambiguous=ambiguous)
+            theirs = wcwidth.width(text, ambiguous_width=ambiguous)
+            if ours == theirs:
+                outcome["agree"] += 1
+            else:
+                assert cp in REGIONAL and selector == "\ufe0e" and (ours, theirs) == (1, 2)
+                outcome["lone regional indicator with VS15"] += 1
+    assert outcome == {"agree": 2868, "lone regional indicator with VS15": 26}
 
 
 def test_grapheme_clusters_are_the_same_on_random_text() -> None:
