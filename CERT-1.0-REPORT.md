@@ -19,6 +19,7 @@ Progress:
 - [x] QA round 1: five lenses run, every finding fixed (see QA lenses)
 - [x] QA round 2: round 1 confirmed fixed, eleven new findings fixed, none disputed (8366709)
 - [x] QA round 3: round 2 confirmed fixed, thirteen new findings fixed, none disputed (c0d8725)
+- [x] QA round 4: round 3 confirmed fixed, five new findings fixed, none disputed (2dc700f)
 - [ ] Five QA lenses PASS on re-verification (item 19)
 - [ ] Independent review (item 16)
 
@@ -44,7 +45,7 @@ Progress:
 | 16 | Independent reviewer | pending (next stage) |
 | 17 | PR and trace guard | PR #4 "cellstr 1.0.0" from `release/1.0.0`, trace guard CLEAN; merge and publish left to the maintainer |
 | 18 | Contracts bite (mutations) | PASS: author round of 30 mutants, 29 killed, 1 equivalent |
-| 19 | Five independent QA lenses | round 1 on 8380f22: 25 findings, all fixed; round 2 on af60316: round 1 confirmed, 11 new findings, all fixed in 8366709, none disputed; re-verification pending |
+| 19 | Five independent QA lenses | round 1 on 8380f22: 25 findings, all fixed; round 2 on af60316: round 1 confirmed, 11 new findings, all fixed in 8366709, none disputed; round 3 on 0ca1732: 13 new findings, all fixed in c0d8725; round 4 on e057b96: 5 new findings, all fixed in 2dc700f, none disputed; re-verification pending |
 
 ## Baseline on 0.2.1 (before any change)
 
@@ -362,5 +363,51 @@ of the branch with the ten Unicode files fetched and wcwidth 0.9.2, pytest-timeo
 `ruff format --check .`, `ruff check .`, `mypy --strict src`, `mypy --strict src tests
 scripts` and `python scripts/gen_ucd_tables.py --check` exit 0; `pytest` exits 0 on
 2,765 collected tests. The commit after it changes only this report.
+
+Disputed findings: none.
+
+### Round 4, on e057b96
+
+Lenses b and e re-ran their round 3 findings on e057b96: N3 is fixed (lens b, with the
+Unicode 18.0.0 GraphemeBreakTest.txt fetched live, 853 of 853 cases passing) and the
+nine round 3 mutants M1 to M9 are killed, with O1 fixed in the docs (lens e). Lens b's
+sweep of padding found a seam the joiner never saw, and lens e's 38 mutants of the
+rewritten `_join.py` left four survivors (30 killed, 4 proven equivalent):
+
+| Lens | Id | Finding | Fix |
+| --- | --- | --- | --- |
+| b | N4 | `ljust`, `rjust`, `center` and `fit` padded by plain concatenation, so a fill that joins the cluster at the edge of the text changed its width: `rjust("️ab", 5, "#")` was 6 cells (`#` + VS16 is an emoji), `ljust("👨‍", 4, "☠")` 3 | behaviour: see the rule below; docstring of `ljust`, GUIDE and CHANGELOG |
+| e | N1 (S29) | `while` to `if` in `Joiner._add_fixed` survived: only the first leading suffix cluster was checked | pinned: `truncate("😀abcdef", 4, "‍💻")` is the grin and its ZWJ |
+| e | N2 (S38) | `break` after the first leading suffix cluster survived (same gap) | killed by the same test |
+| e | N3 (S16) | open cluster kept as the whole glued text survived | pinned: `cell_slice("↔︎कक", 0, 3)`, the same text after a tab in `expand_tabs` and a start cut keep both consonants |
+| e | N4 (S32) | `_last_cluster` returning all after the first boundary survived | pinned: an orphan mark after a suffix of a letter and three regional indicators (`position="middle"`, `tabsize=8`) stays, 8 cells |
+
+The padding rule now, in `_ops._pad`: the fill cell next to the text is a space when the
+fill would join the cluster at that edge into one of another width, measured on the
+whole padded text with the caller's ambiguous policy. A space joins only as the sum of
+the widths (checked for every code point on both sides), and copies of a valid fill
+never glue to each other at another width (checked for every valid fill), so a padded
+result is exactly `width` cells and holds the text whole. A fill that glues at the same
+width (a regional indicator after a lone one, `#` before a combining acute) stays. The
+API is unchanged.
+
+The new tests (`tests/test_pad_seams.py`, three functions added to
+`tests/test_fusion_seams.py`) were run against the e057b96 sources first: the four pad
+seam functions that pin the new rule failed, and the three joiner pins passed (they
+pin values the code already gave). Each of S29, S38, S16 and S32 applied to the fixed
+sources fails `tests/test_fusion_seams.py`. Mutation check of `_pad`, seven mutants one
+at a time (each seam check removed, the right check measured without the left fill, the
+space put on the far side of each fill run, the body measured with ambiguous=1, the
+centre split swapped): all seven killed by `tests/test_pad_seams.py`. A seeded fuzz of
+60,000 random texts from 23 seam-prone pieces and 23 fill and ambiguous policy pairs (13 fills)
+and the four padding functions with every alignment found no result off `width`.
+
+Fix in commit 2dc700f. Gates at 2dc700f on Elena's PC (CPython 3.14), from a private
+clone of the branch with the ten Unicode files fetched (all ten verified against the
+manifest) and wcwidth 0.9.2, pytest-timeout 300 s: `ruff format --check .`, `ruff check
+.`, `mypy --strict src`, `mypy --strict src tests scripts` and `python
+scripts/gen_ucd_tables.py --check` exit 0; `pytest` 2,774 passed in 53 s. The commit
+after it changes only this report and one docstring word ("before" an orphan at the
+start of the text).
 
 Disputed findings: none.

@@ -133,7 +133,7 @@ def ljust(
     cell wide. With ``tabsize`` set, tabs are expanded first (see ``expand_tabs``); a
     stray ESC goes as in ``cell_slice``, so the fill never extends it into a sequence.
     The result is exactly ``width`` cells when it is padded: a fill that would join the
-    cluster at the edge of the text into one of another width (after an orphan VS16 or
+    cluster at the edge of the text into one of another width (before an orphan VS16 or
     skin tone modifier at its start, after a ZWJ at its end) is a space in that one cell.
 
     >>> ljust("\\u4f60", 4) == "\\u4f60  "
